@@ -1,4 +1,7 @@
 import AdminModel from '../model/Admin.js'
+import OtpModel from '../model/Otp.js'
+import { generateOtp } from '../middleware/utils.js'
+import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
 
 export const register = async (req, res) => {
 	try {
@@ -39,19 +42,61 @@ export const verifyOtp = async (req, res) => {
 }
 
 export const resendOtp = async (req, res) => {
-	res.status(501).json({ message: 'resendOtp handler not implemented' })
+	try {
+		const { email, otp } = req.body
+		const record = await OtpModel.findOne({ email, code: otp })
+		if (!record) return res.status(400).json({ success: false, message: 'Invalid or expired OTP' })
+		const admin = await AdminModel.findOne({ email })
+		if (admin) {
+			// you might set a verified flag later; keep as stub
+		}
+		await OtpModel.deleteMany({ email })
+		res.status(200).json({ success: true, message: 'OTP verified' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'verifyOtp error', error: err.message })
+	}
 }
 
 export const forgotPassword = async (req, res) => {
-	res.status(501).json({ message: 'forgotPassword handler not implemented' })
+	try {
+		const { email } = req.body
+		const admin = await AdminModel.findOne({ email })
+		if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' })
+		const otp = await generateOtp(admin._id, email)
+		await activationEmail({ name: admin.name || 'Admin', email, otp })
+		res.status(200).json({ success: true, message: 'OTP resent' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'resendOtp error', error: err.message })
+	}
 }
 
 export const resetPassword = async (req, res) => {
-	res.status(501).json({ message: 'resetPassword handler not implemented' })
+	try {
+		const { email } = req.body
+		const admin = await AdminModel.findOne({ email })
+		if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' })
+		const otp = await generateOtp(admin._id, email)
+		await forgotPasswordEmail({ name: admin.name || 'Admin', email, otp })
+		res.status(200).json({ success: true, message: 'Password reset OTP sent' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'forgotPassword error', error: err.message })
+	}
 }
 
 export const logout = async (req, res) => {
-	res.status(200).json({ success: true, message: 'Admin logged out (stub)' })
+	try {
+		const { email, otp, newPassword } = req.body
+		const record = await OtpModel.findOne({ email, code: otp })
+		if (!record) return res.status(400).json({ success: false, message: 'Invalid or expired OTP' })
+		const admin = await AdminModel.findOne({ email })
+		if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' })
+		admin.password = newPassword
+		await admin.save()
+		await OtpModel.deleteMany({ email })
+		res.status(200).json({ success: true, message: 'Password reset successful' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'resetPassword error', error: err.message })
+	}
 }
 
 export default {
