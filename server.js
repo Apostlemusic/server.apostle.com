@@ -39,31 +39,18 @@ app.use(bodyParser.json({ limit: "200mb" }));
 app.use(bodyParser.urlencoded({ limit: "200mb", extended: true }));
 
 const corsOptions = {
-    origin: function (origin, callback) {
-        // Normalize configured origins and request origin (remove trailing slash)
-        const normalizedConfig = allowedOrigins.map(o => (typeof o === 'string' ? o.replace(/\/$/, '') : o));
-        const reqOrigin = typeof origin === 'string' ? origin.replace(/\/$/, '') : origin;
-
-        // Allow non-browser requests or same-origin (no origin header)
-        if (!reqOrigin) return callback(null, true);
-
-        // Dev override to allow all origins
-        if (process.env.ALLOW_ALL_ORIGINS === 'true') return callback(null, true);
-
-        // If wildcard configured, reflect the request origin (required when credentials: true)
-        if (normalizedConfig.includes('*')) return callback(null, true);
-
-        // Exact match against configured origins
-        if (normalizedConfig.includes(reqOrigin)) return callback(null, true);
-
-        // Block otherwise
-        return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
+    // Always allow; cors will echo the request origin, which is required when credentials: true
+    origin: function (_origin, callback) { callback(null, true); },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    // Include common headers; cors also mirrors Access-Control-Request-Headers automatically
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
+// Handle preflight for all routes
+app.options('*', cors(corsOptions));
 
 //DOCs
 import swaggerUI from 'swagger-ui-express';
@@ -94,6 +81,8 @@ app.use('/api/user', userRoute);
 // also support plural `/api/songs` for clients that use that path
 // app.use('/api/songs', songRoute);
 app.use('/api/admin', adminRoute)
+// Alias to support clients calling /api/admin/auth/* (e.g., /api/admin/auth/login)
+app.use('/api/admin/auth', adminRoute)
 // Deprecated mounts removed: /api/category, /api/song, /api/playlist
 app.use('/api/artist', artistRoute)
 app.use('/api/content', contentRoute)
