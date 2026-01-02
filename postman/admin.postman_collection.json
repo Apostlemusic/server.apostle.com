@@ -1,0 +1,342 @@
+{
+  "info": {
+    "_postman_id": "1f727a8e-4b28-4a6c-9b7a-9c9c1cc2f0a1",
+    "name": "Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Admin authentication and server stats endpoints."
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level pre-request script to attach admin cookies and defaults",
+          "// Note: Do not use pm.response here.",
+          "pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+          "",
+          "// Ensure baseUrl is set",
+          "var baseUrl = pm.collectionVariables.get('baseUrl') || pm.environment.get('baseUrl');",
+          "if (!baseUrl) { pm.collectionVariables.set('baseUrl', 'http://localhost:10000'); }",
+          "",
+          "// Default admin variables if missing",
+          "if (!pm.collectionVariables.get('adminEmail')) pm.collectionVariables.set('adminEmail', 'admin_' + Date.now() + '@example.com');",
+          "if (!pm.collectionVariables.get('adminPassword')) pm.collectionVariables.set('adminPassword', 'AdminPass123!');",
+          "if (!pm.collectionVariables.get('adminName')) pm.collectionVariables.set('adminName', 'Admin User');",
+          "pm.collectionVariables.set('adminPhone', pm.collectionVariables.get('adminPhone') || '+10000000000');",
+          "",
+          "// Attach Cookie header with admin tokens if available (secure cookies won't persist on HTTP)",
+          "var access = pm.environment.get('apostolicAdminAccessToken');",
+          "var refresh = pm.environment.get('apostolicAdminRefreshToken');",
+          "if (access || refresh) {",
+          "  var cookieVal = [",
+          "    access ? 'apostolicadminaccesstoken=' + access : null,",
+          "    refresh ? 'apostolicadmintoken=' + refresh : null",
+          "  ].filter(Boolean).join('; ');",
+          "  pm.request.headers.upsert({ key: 'Cookie', value: cookieVal });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:10000" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "AdminPass123!" },
+    { "key": "adminName", "value": "Admin User" },
+    { "key": "adminPhone", "value": "+10000000000" },
+    { "key": "adminOtp", "value": "123456" },
+    { "key": "adminNewPassword", "value": "AdminPass456!" }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"name\": \"{{adminName}}\",\n  \"phoneNumber\": \"{{adminPhone}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Contains admin object', function () { pm.expect(json).to.have.property('admin'); pm.expect(json.admin).to.have.property('id'); });",
+                  "pm.test('Contains tokens', function () { pm.expect(json).to.have.property('accessToken'); pm.expect(json).to.have.property('refreshToken'); });",
+                  "// Save tokens and admin id to environment",
+                  "pm.environment.set('apostolicAdminAccessToken', json.accessToken);",
+                  "pm.environment.set('apostolicAdminRefreshToken', json.refreshToken);",
+                  "pm.environment.set('adminId', json.admin && json.admin.id);",
+                  "pm.test('Response time < 2000ms', function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Contains tokens', function () { pm.expect(json).to.have.property('accessToken'); pm.expect(json).to.have.property('refreshToken'); });",
+                  "pm.environment.set('apostolicAdminAccessToken', json.accessToken);",
+                  "pm.environment.set('apostolicAdminRefreshToken', json.refreshToken);",
+                  "pm.test('Response time < 2000ms', function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/verifyOtp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "verifyOtp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"otp\": \"{{adminOtp}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Message present', function () { pm.expect(json).to.have.property('message'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/resendOtp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "resendOtp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Message present', function () { pm.expect(json).to.have.property('message'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/forgotPassword",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "forgotPassword"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Message present', function () { pm.expect(json).to.have.property('message'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/resetPassword",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "resetPassword"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"otp\": \"{{adminOtp}}\",\n  \"newPassword\": \"{{adminNewPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Message present', function () { pm.expect(json).to.have.property('message'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(json).to.have.property('success', true); });",
+                  "pm.test('Message present', function () { pm.expect(json).to.have.property('message'); });",
+                  "// Clear tokens after logout",
+                  "pm.environment.unset('apostolicAdminAccessToken');",
+                  "pm.environment.unset('apostolicAdminRefreshToken');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Server Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "stats"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Success is true', function () { pm.expect(j).to.have.property('success', true); });",
+                  "pm.test('Has stats and totals', function () { pm.expect(j).to.have.property('stats'); pm.expect(j.stats).to.have.property('totals'); });",
+                  "pm.test('Totals fields are numbers', function () {",
+                  "  const t = j.stats.totals;",
+                  "  ['users','artists','songs','albums','playlists','categories','genres','hiddenSongs','hiddenAlbums','songLikes','albumLikes','recentPlays'].forEach(function (k) {",
+                  "    pm.expect(t[k]).to.be.a('number');",
+                  "  });",
+                  "});",
+                  "pm.test('Top arrays have correct shape', function () {",
+                  "  ['topCategories','topGenres'].forEach(function (key) {",
+                  "    pm.expect(j.stats[key]).to.be.an('array');",
+                  "    if (j.stats[key].length > 0) {",
+                  "      const item = j.stats[key][0];",
+                  "      pm.expect(item).to.have.property('slug');",
+                  "      pm.expect(item.slug).to.be.a('string');",
+                  "      pm.expect(item).to.have.property('count');",
+                  "      pm.expect(item.count).to.be.a('number');",
+                  "    }",
+                  "  });",
+                  "});",
+                  "pm.test('Response time < 2000ms', function () { pm.expect(pm.response.responseTime).to.be.below(2000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@ export const AuthenticateUser = async (req, res, next) => {
     const accessToken = req.cookies.apostolicaccesstoken;
     const refreshToken = req.cookies.apostolictoken;
 
-    console.log('TOKENS', accessToken, refreshToken);
+    // console.log('TOKENS', accessToken, refreshToken);
 
     if (accessToken) {
         try {

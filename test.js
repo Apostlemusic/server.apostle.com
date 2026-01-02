@@ -1,7 +1,4 @@
-import { activationEmail } from "./middleware/emailTemplate.js";
+// Deprecated: this file is unused and retained only to avoid accidental imports.
+// If needed, recreate test helpers in a dedicated test harness.
 
-                await activationEmail({
-                    name: 'JENNy',
-                    email: 'successakin123@gmail.com',
-                    otp: '9908'
-                })
+export default {}

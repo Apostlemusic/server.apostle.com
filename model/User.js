@@ -18,6 +18,11 @@ const UserSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
     },
+    role: {
+        type: String,
+        enum: ['user','artist','admin'],
+        default: 'user'
+    },
     verified: {
         type: Boolean,
         default: false

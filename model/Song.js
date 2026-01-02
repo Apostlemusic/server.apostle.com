@@ -41,6 +41,10 @@ const SongSchema = new mongoose.Schema({
         type: Array,
         required: [ true, 'at least one category is Required']
     },
+    genre: {
+        type: Array,
+        default: []
+    },
     lyrics: {
         type: String
     },
@@ -50,6 +54,10 @@ const SongSchema = new mongoose.Schema({
     },
     likes: {
         type: Array
+    },
+    hidden: {
+        type: Boolean,
+        default: false
     }
 },
 { timestamps: true}
