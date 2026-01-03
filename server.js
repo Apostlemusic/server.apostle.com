@@ -49,8 +49,6 @@ const corsOptions = {
     optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
-// Handle preflight for all routes
-app.options('*', cors(corsOptions));
 
 //DOCs
 import swaggerUI from 'swagger-ui-express';
