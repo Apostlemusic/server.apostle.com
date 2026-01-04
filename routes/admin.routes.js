@@ -22,6 +22,9 @@ router.post('/logout', controllers.logout)
 // Admin server stats
 router.get('/stats', AuthenticateAdmin, controllers.getServerStats)
 
+// Admin profile
+router.get('/profile/me', AuthenticateAdmin, controllers.getAdminProfile)
+
 
 
 //PUT ROUTES

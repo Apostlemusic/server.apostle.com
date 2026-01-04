@@ -153,6 +153,19 @@ export const logout = async (req, res) => {
 	}
 }
 
+// Return authenticated admin's profile
+export const getAdminProfile = async (req, res) => {
+	try {
+		const admin = req.user
+		if (!admin) return res.status(401).json({ success: false, message: 'Authentication required' })
+		const doc = await AdminModel.findById(admin._id)
+		if (!doc) return res.status(404).json({ success: false, message: 'Admin not found' })
+		res.status(200).json({ success: true, admin: doc })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching admin profile', error: err.message })
+	}
+}
+
 // ===== Admin Stats =====
 export const getServerStats = async (req, res) => {
 	try {
@@ -250,5 +263,6 @@ export default {
 	forgotPassword,
 	resetPassword,
 	logout,
+	getAdminProfile,
 	getServerStats,
 }

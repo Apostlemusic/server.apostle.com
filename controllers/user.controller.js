@@ -3,6 +3,19 @@ import OtpModel from '../model/Otp.js'
 import { generateOtp } from '../middleware/utils.js'
 import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
 
+// Return authenticated user's profile
+export const getUserProfile = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+		const user = await UserModel.findById(u._id).select('-password')
+		if (!user) return res.status(404).json({ success: false, message: 'User not found' })
+		res.status(200).json({ success: true, user })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching profile', error: err.message })
+	}
+}
+
 export const getUsers = async (req, res) => {
 	try {
 		const users = await UserModel.find().select('-password')
@@ -182,6 +195,7 @@ export const isVerified = async (req, res) => {
 export default {
 	getUsers,
 	getUser,
+  getUserProfile,
 	register,
 	login,
 	verifyOtp,

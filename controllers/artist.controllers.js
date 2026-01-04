@@ -5,6 +5,7 @@ import { generateOtp } from '../middleware/utils.js'
 import { activationEmail, forgotPasswordEmail } from '../middleware/emailTemplate.js'
 import SongModel from '../model/Song.js'
 import AlbumModel from '../model/Album.js'
+import SequenceModel from '../model/Sequence.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import PlayListModel from '../model/PlayList.js'
@@ -98,6 +99,16 @@ export const uploadSong = async (req, res) => {
 	const { user, error } = requireArtist(req, res); if (error) return
 	try {
 		const payload = { ...req.body, userId: String(user._id), hidden: false }
+		// Generate sequential trackId if missing
+		if (!payload.trackId) {
+			const seq = await SequenceModel.findOneAndUpdate(
+				{ name: 'song' },
+				{ $inc: { value: 1 } },
+				{ new: true, upsert: true }
+			)
+			const padded = String(seq.value).padStart(6, '0')
+			payload.trackId = `TRK-${padded}`
+		}
 		const song = new SongModel(payload)
 		await song.save()
 		res.status(201).json({ success: true, song })
@@ -206,9 +217,66 @@ export const uploadAlbum = async (req, res) => {
 		}
 
 		const payload = { ...req.body, artistUserId: String(user._id), hidden: false }
+		// Generate sequential albumId
+		const albumSeq = await SequenceModel.findOneAndUpdate(
+			{ name: 'album' },
+			{ $inc: { value: 1 } },
+			{ new: true, upsert: true }
+		)
+		const albumPadded = String(albumSeq.value).padStart(6, '0')
+		payload.albumId = `ALB-${albumPadded}`
 		payload.category = await ensureCategoriesExist(payload.category)
 		payload.genre = await ensureGenresExist(payload.genre)
-		const album = new AlbumModel(payload)
+
+		// If songs are provided, create them and attach to album
+		const songs = Array.isArray(payload.songs) ? payload.songs : []
+		let trackIds = []
+		if (songs.length > 0) {
+			for (const s of songs) {
+				// basic validation for required song fields
+				const required = ['trackUrl', 'title', 'author', 'trackImg']
+				for (const key of required) {
+					if (!s[key]) {
+						return res.status(400).json({ success: false, message: `Song field \`${key}\` is required` })
+					}
+				}
+				const songPayload = {
+					...s,
+					userId: String(user._id),
+					hidden: false,
+				}
+				// Generate trackId if missing
+				if (!songPayload.trackId) {
+					const seq = await SequenceModel.findOneAndUpdate(
+						{ name: 'song' },
+						{ $inc: { value: 1 } },
+						{ new: true, upsert: true }
+					)
+					const padded = String(seq.value).padStart(6, '0')
+					songPayload.trackId = `TRK-${padded}`
+				}
+				// If song has taxonomy, normalize and ensure exist
+				songPayload.category = await ensureCategoriesExist(songPayload.category || payload.category)
+				songPayload.genre = await ensureGenresExist(songPayload.genre || payload.genre)
+				const song = new SongModel(songPayload)
+				await song.save()
+				trackIds.push(song.trackId)
+			}
+		} else {
+			// No songs array provided; require at least one trackId in payload for album consistency
+			const providedTrackIds = Array.isArray(payload.tracksId) ? payload.tracksId : []
+			if (providedTrackIds.length === 0) {
+				return res.status(400).json({ success: false, message: 'Album must include at least one song (provide `songs` array or `tracksId` list).' })
+			}
+			trackIds = providedTrackIds
+		}
+
+		const albumPayload = { ...payload }
+		albumPayload.tracksId = trackIds
+		// Do not persist raw songs array in album document
+		delete albumPayload.songs
+
+		const album = new AlbumModel(albumPayload)
 		await album.save()
 		res.status(201).json({ success: true, album })
 	} catch (err) {
@@ -313,7 +381,93 @@ export const getMyAlbums = async (req, res) => {
 	}
 }
 
+// Upload a single song directly into an existing album (generate trackId and update album.tracksId)
+export const uploadSongToAlbum = async (req, res) => {
+	const { user, error } = requireArtist(req, res); if (error) return
+	try {
+		const { albumId, ...songInput } = req.body
+		if (!albumId) return res.status(400).json({ success: false, message: 'albumId is required' })
+		const album = await AlbumModel.findById(albumId)
+		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
+		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+
+		// Basic required song fields (trackId optional - will be generated)
+		const required = ['trackUrl', 'title', 'author', 'trackImg']
+		for (const key of required) {
+			if (!songInput[key]) {
+				return res.status(400).json({ success: false, message: `Song field \`${key}\` is required` })
+			}
+		}
+
+		// taxonomy helpers
+		const toSlug = (str = '') => String(str).trim().toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '-').replace(/_/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
+		const titleCase = (str = '') => String(str).trim().toLowerCase().split(/[-\s_]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
+		const normalizeArray = (input) => {
+			if (!input) return []
+			const arr = Array.isArray(input) ? input : [input]
+			const slugs = arr.map(v => toSlug(v)).filter(v => v && v.length > 0)
+			return [...new Set(slugs)]
+		}
+		const ensureCategoriesExist = async (categories) => {
+			const slugs = normalizeArray(categories)
+			for (const slug of slugs) {
+				const existing = await CategoryModel.findOne({ slug })
+				if (!existing) await new CategoryModel({ name: titleCase(slug), slug }).save()
+			}
+			return slugs
+		}
+		const ensureGenresExist = async (genres) => {
+			const slugs = normalizeArray(genres)
+			for (const slug of slugs) {
+				const existing = await GenreModel.findOne({ slug })
+				if (!existing) await new GenreModel({ name: titleCase(slug), slug }).save()
+			}
+			return slugs
+		}
+
+		const songPayload = {
+			...songInput,
+			userId: String(user._id),
+			hidden: false,
+		}
+		// Generate trackId if missing
+		if (!songPayload.trackId) {
+			const seq = await SequenceModel.findOneAndUpdate(
+				{ name: 'song' },
+				{ $inc: { value: 1 } },
+				{ new: true, upsert: true }
+			)
+			const padded = String(seq.value).padStart(6, '0')
+			songPayload.trackId = `TRK-${padded}`
+		}
+		// Normalize taxonomy (fallback to album's taxonomy if not provided)
+		songPayload.category = await ensureCategoriesExist(songPayload.category || album.category)
+		songPayload.genre = await ensureGenresExist(songPayload.genre || album.genre)
+
+		const song = new SongModel(songPayload)
+		await song.save()
+
+		album.tracksId = Array.isArray(album.tracksId) ? album.tracksId : []
+		if (!album.tracksId.includes(song.trackId)) album.tracksId.push(song.trackId)
+		await album.save()
+
+		res.status(201).json({ success: true, song, album })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error uploading song to album', error: err.message })
+	}
+}
+
 // ===== Artist profile updates =====
+export const getArtistProfile = async (req, res) => {
+	const { user, error } = requireArtist(req, res); if (error) return
+	try {
+		const profile = await ArtistModel.findOne({ userId: String(user._id) })
+		if (!profile) return res.status(404).json({ success: false, message: 'Artist profile not found' })
+		res.status(200).json({ success: true, artist: profile })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching profile', error: err.message })
+	}
+}
 export const getArtistStats = async (req, res) => {
 	const { user, error } = requireArtist(req, res); if (error) return
 	try {
@@ -595,5 +749,6 @@ export default {
 	hideAlbum,
 	unhideAlbum,
 	getMyAlbums,
+	getArtistProfile,
 	editArtistProfile,
 }

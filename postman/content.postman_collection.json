@@ -10,6 +10,7 @@
     { "key": "adminAccessToken", "value": "" },
     { "key": "userId", "value": "" },
     { "key": "songId", "value": "" },
+    { "key": "trackId", "value": "" },
     { "key": "playlistId", "value": "" },
     { "key": "categorySlug", "value": "pop" },
     { "key": "genreSlug", "value": "afrobeats" }
@@ -30,7 +31,9 @@
           "  const hasCookie = pm.request.headers.has('Cookie');",
           "  if (hasCookie) { pm.request.headers.upsert({ key: 'Cookie', value: cookieHeader }); }",
           "  else { pm.request.headers.add({ key: 'Cookie', value: cookieHeader }); }",
-          "}"
+          "}",
+          "// Also attach Authorization header if access token present (server supports Bearer)",
+          "if (access) { pm.request.headers.upsert({ key: 'Authorization', value: `Bearer ${access}` }); }"
         ]
       }
     }
@@ -70,6 +73,26 @@
               "if (pm.response.code === 200) {",
               "  const json = pm.response.json();",
               "  pm.test('has song', function(){ pm.expect(json.song).to.be.an('object'); });",
+              "  pm.test('lyricsParsed array present', function(){ pm.expect(json.lyricsParsed).to.be.an('array'); });",
+              "}"
+            ]}
+          }]
+        },
+        {
+          "name": "Get Song By TrackId",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/content/songs/track/{{trackId}}", "host": ["{{baseUrl}}"], "path": ["api","content","songs","track","{{trackId}}"] }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK or 404', function(){ pm.expect([200,404]).to.include(pm.response.code); });",
+              "if (pm.response.code === 200) {",
+              "  const json = pm.response.json();",
+              "  pm.test('has song', function(){ pm.expect(json.song).to.be.an('object'); });",
+              "  pm.test('lyricsParsed array present', function(){ pm.expect(json.lyricsParsed).to.be.an('array'); });",
               "}"
             ]}
           }]
@@ -171,14 +194,16 @@
               { "key": "Content-Type", "value": "application/json" },
               { "key": "Accept", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Test Track\",\n  \"trackUrl\": \"https://res.cloudinary.com/demo/audio.mp3\",\n  \"trackImg\": \"https://res.cloudinary.com/demo/cover.jpg\",\n  \"previewUrl\": \"https://res.cloudinary.com/demo/preview.mp3\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"]\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Test Track\",\n  \"author\": \"Sample Artist\",\n  \"trackId\": \"TRACK-XYZ\",\n  \"trackUrl\": \"https://res.cloudinary.com/demo/audio.mp3\",\n  \"trackImg\": \"https://res.cloudinary.com/demo/cover.jpg\",\n  \"previewUrl\": \"https://res.cloudinary.com/demo/preview.mp3\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"lyrics\": \"First line\\nSecond line\\nThird line\"\n}" },
             "url": { "raw": "{{baseUrl}}/api/content/songs", "host": ["{{baseUrl}}"], "path": ["api","content","songs"] }
           },
           "event": [{
             "listen": "test",
             "script": { "type": "text/javascript", "exec": [
               "pm.test('201 Created', function(){ pm.response.to.have.status(201); });",
-              "pm.test('created song object', function(){ const json = pm.response.json(); pm.expect(json.song).to.be.an('object'); });"
+              "pm.test('created song object', function(){ const json = pm.response.json(); pm.expect(json.song).to.be.an('object'); });",
+              "pm.collectionVariables.set('songId', (pm.response.json().song && pm.response.json().song._id) ? pm.response.json().song._id : '');",
+              "pm.collectionVariables.set('trackId', (pm.response.json().song && pm.response.json().song.trackId) ? pm.response.json().song.trackId : '');"
             ]}
           }]
         },

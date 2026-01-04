@@ -1,4 +1,5 @@
 import SongModel from '../model/Song.js'
+import SequenceModel from '../model/Sequence.js'
 import PlayListModel from '../model/PlayList.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
@@ -68,6 +69,16 @@ export const createSong = async (req, res) => {
     // set owner from authenticated user
     if (req.user && req.user._id) {
       payload.userId = req.user._id
+    }
+    // Generate sequential trackId if missing
+    if (!payload.trackId) {
+      const seq = await SequenceModel.findOneAndUpdate(
+        { name: 'song' },
+        { $inc: { value: 1 } },
+        { new: true, upsert: true }
+      )
+      const padded = String(seq.value).padStart(6, '0')
+      payload.trackId = `TRK-${padded}`
     }
     // normalize and ensure categories/genres exist; store slugs in song
     payload.category = await ensureCategoriesExist(payload.category)
@@ -151,9 +162,22 @@ export const getSongById = async (req, res) => {
   try {
     const song = await SongModel.findById(req.params.id)
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-    res.status(200).json({ success: true, song })
+    // include parsed lyrics for convenience
+    const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
+    res.status(200).json({ success: true, song, lyricsParsed })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching song', error: err.message })
+  }
+}
+
+export const getSongByTrackId = async (req, res) => {
+  try {
+    const song = await SongModel.findOne({ trackId: req.params.trackId })
+    if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
+    const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
+    res.status(200).json({ success: true, song, lyricsParsed })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error fetching song by trackId', error: err.message })
   }
 }
 
@@ -408,6 +432,7 @@ export default {
   likeSong,
   getAllSongs,
   getSongById,
+  getSongByTrackId,
   getSongLyrics,
   searchSongs,
   getSongsByCategory,

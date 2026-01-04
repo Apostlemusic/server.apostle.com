@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const AlbumSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Album name is required'] },
+  albumId: { type: String, unique: true },
   artistUserId: { type: String, required: true },
   coverImg: { type: String },
   description: { type: String },

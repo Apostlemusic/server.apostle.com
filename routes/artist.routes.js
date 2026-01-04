@@ -50,12 +50,14 @@ router.post('/album/remove', AuthenticateUser, controllers.removeAlbum)
 router.post('/album/hide', AuthenticateUser, controllers.hideAlbum)
 router.post('/album/unhide', AuthenticateUser, controllers.unhideAlbum)
 router.get('/album/my', AuthenticateUser, controllers.getMyAlbums)
+router.post('/album/song/upload', AuthenticateUser, uploadMiddleware, controllers.uploadSongToAlbum)
 
 // Artist dashboard stats
 router.get('/dashboard/stats', AuthenticateUser, controllers.getArtistStats)
 
 // Artist profile edit
 router.post('/profile/edit', AuthenticateUser, uploadMiddleware, controllers.editArtistProfile)
+router.get('/profile/me', AuthenticateUser, controllers.getArtistProfile)
 
 //PUT ROUTES
 

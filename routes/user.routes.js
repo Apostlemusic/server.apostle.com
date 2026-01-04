@@ -12,6 +12,7 @@ router.use(requireDb)
 //GET ROUTES
 router.get('/getUsers', controllers.getUsers)
 router.get('/getUser/:id', AuthenticateUser, controllers.getUser)
+router.get('/profile/me', AuthenticateUser, controllers.getUserProfile)
 
 
 // ===== Auth routes merged here =====

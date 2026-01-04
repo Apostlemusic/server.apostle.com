@@ -126,6 +126,28 @@
       "name": "profile & social",
       "item": [
         {
+          "name": "Get My Artist Profile",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/artist/profile/me", "host": ["{{baseUrl}}"], "path": ["api","artist","profile","me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function(){ pm.response.to.have.status(200); });",
+                  "const j = pm.response.json();",
+                  "pm.test('Has artist object', function(){ pm.expect(j.success).to.eql(true); pm.expect(j).to.have.property('artist'); pm.expect(j.artist).to.be.an('object'); });",
+                  "if (j.artist && j.artist._id) { pm.collectionVariables.set('artistProfileId', j.artist._id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Delete Artist (Admin)",
           "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "url": { "raw": "{{baseUrl}}/api/artist/deleteArtist", "host": ["{{baseUrl}}"], "path": ["api","artist","deleteArtist"] }, "body": { "mode": "raw", "raw": "{\n  \"artistId\": \"{{artistId}}\"\n}" } }
         },
@@ -170,7 +192,7 @@
             "url": { "raw": "{{baseUrl}}/api/artist/song/upload", "host": ["{{baseUrl}}"], "path": ["api","artist","song","upload"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"My Song\",\n  \"author\": \"{{artistName}}\",\n  \"trackId\": \"TRACK-001\",\n  \"trackUrl\": \"{{songTrackUrl}}\",\n  \"trackImg\": \"{{songCoverUrl}}\",\n  \"previewUrl\": \"{{songPreviewUrl}}\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"description\": \"A powerful track\",\n  \"lyrics\": \"...\"\n}"
+              "raw": "{\n  \"title\": \"My Song\",\n  \"author\": \"{{artistName}}\",\n  \"trackUrl\": \"{{songTrackUrl}}\",\n  \"trackImg\": \"{{songCoverUrl}}\",\n  \"previewUrl\": \"{{songPreviewUrl}}\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"description\": \"A powerful track\",\n  \"lyrics\": \"...\"\n}"
             }
           },
           "event": [{
@@ -178,7 +200,8 @@
             "script": { "type": "text/javascript", "exec": [
               "pm.test('Created (201)', function () { pm.response.to.have.status(201); });",
               "pm.test('Track URL echoed', function(){ const j = pm.response.json(); pm.expect(j.song.trackUrl).to.eql(pm.collectionVariables.get('songTrackUrl')); });",
-              "pm.collectionVariables.set('songId', (pm.response.json().song && pm.response.json().song._id) ? pm.response.json().song._id : '');"
+                "pm.collectionVariables.set('songId', (pm.response.json().song && pm.response.json().song._id) ? pm.response.json().song._id : '');",
+                "pm.collectionVariables.set('trackId', (pm.response.json().song && pm.response.json().song.trackId) ? pm.response.json().song.trackId : '');"
             ] }
           }]
         },
@@ -227,6 +250,26 @@
           }
         },
         {
+          "name": "Upload Song to Album (Artist)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/artist/album/song/upload", "host": ["{{baseUrl}}"], "path": ["api","artist","album","song","upload"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"albumId\": \"{{albumId}}\",\n  \"title\": \"Another Track\",\n  \"author\": \"{{artistName}}\",\n  \"trackUrl\": \"{{songTrackUrl}}\",\n  \"trackImg\": \"{{songCoverUrl}}\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"lyrics\": \"First line\\nSecond line\\nThird line\"\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Created (201)', function () { pm.response.to.have.status(201); });",
+            "const j = pm.response.json();",
+            "pm.test('Has song and album', function(){ pm.expect(j.song).to.be.an('object'); pm.expect(j.album).to.be.an('object'); });",
+            "pm.collectionVariables.set('songId', (j.song && j.song._id) ? j.song._id : '');",
+            "pm.collectionVariables.set('trackId', (j.song && j.song.trackId) ? j.song.trackId : '');",
+            "pm.test('Album includes trackId', function(){ pm.expect(Array.isArray(j.album.tracksId)).to.eql(true); pm.expect(j.album.tracksId.includes(pm.collectionVariables.get('trackId'))).to.eql(true); });"
+          ] } }]
+        },
+        {
           "name": "My Songs (Artist)",
           "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/artist/song/my", "host": ["{{baseUrl}}"], "path": ["api","artist","song","my"] } }
         },
@@ -238,13 +281,14 @@
             "url": { "raw": "{{baseUrl}}/api/artist/album/upload", "host": ["{{baseUrl}}"], "path": ["api","artist","album","upload"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Debut Album\",\n  \"coverImg\": \"{{albumCoverUrl}}\",\n  \"description\": \"Album description\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"tracksId\": []\n}"
+              "raw": "{\n  \"name\": \"Debut Album\",\n  \"coverImg\": \"{{albumCoverUrl}}\",\n  \"description\": \"Album description\",\n  \"category\": [\"{{categorySlug}}\"],\n  \"genre\": [\"{{genreSlug}}\"],\n  \"songs\": [\n    {\n      \"title\": \"Intro Track\",\n      \"author\": \"{{artistName}}\",\n      \"trackId\": \"ALB-TRACK-001\",\n      \"trackUrl\": \"{{songTrackUrl}}\",\n      \"trackImg\": \"{{songCoverUrl}}\",\n      \"previewUrl\": \"{{songPreviewUrl}}\",\n      \"category\": [\"{{categorySlug}}\"],\n      \"genre\": [\"{{genreSlug}}\"],\n      \"lyrics\": \"Line 1\\nLine 2\\nLine 3\"\n    }\n  ]\n}"
             }
           },
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
             "pm.test('Created (201)', function () { pm.response.to.have.status(201); });",
             "pm.collectionVariables.set('albumId', (pm.response.json().album && pm.response.json().album._id) ? pm.response.json().album._id : '');",
-            "pm.test('Cover URL echoed', function(){ const j = pm.response.json(); pm.expect(j.album.coverImg).to.eql(pm.collectionVariables.get('albumCoverUrl')); });"
+            "pm.test('Cover URL echoed', function(){ const j = pm.response.json(); pm.expect(j.album.coverImg).to.eql(pm.collectionVariables.get('albumCoverUrl')); });",
+            "pm.test('Album has tracks', function(){ const j = pm.response.json(); pm.expect(Array.isArray(j.album.tracksId)).to.eql(true); pm.expect(j.album.tracksId.length).to.be.at.least(1); });"
           ] } }]
         },
         {
@@ -331,6 +375,8 @@
           "if (adminAccess) cookieHeader += ` apostolicadminaccesstoken=${adminAccess};`;",
           "if (adminRefresh) cookieHeader += ` apostolicadmintoken=${adminRefresh};`;",
           "if (cookieHeader) { pm.request.headers.upsert({ key: 'Cookie', value: cookieHeader.trim() }); }"
+          ,"// Also attach Authorization header if access token present (server supports Bearer)",
+          "if (access) { pm.request.headers.upsert({ key: 'Authorization', value: `Bearer ${access}` }); }"
         ]
       }
     }
