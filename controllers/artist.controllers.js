@@ -429,6 +429,19 @@ export const register = async (req, res) => {
 
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
+		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
+		res.cookie('apostolicaccesstoken', accessToken, {
+			httpOnly: true,
+			sameSite: 'None',
+			secure: true,
+			maxAge: 15 * 60 * 1000, // 15 minutes
+		})
+		res.cookie('apostolictoken', refreshToken, {
+			httpOnly: true,
+			sameSite: 'None',
+			secure: true,
+			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		})
 		res.status(201).json({ success: true, artist: { id: profile._id, userId: user._id, name: profile.name }, accessToken, refreshToken, message: 'Artist created. Activation OTP sent to email.' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist register error', error: err.message })
@@ -454,6 +467,19 @@ export const login = async (req, res) => {
 
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
+		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
+		res.cookie('apostolicaccesstoken', accessToken, {
+			httpOnly: true,
+			sameSite: 'None',
+			secure: true,
+			maxAge: 15 * 60 * 1000, // 15 minutes
+		})
+		res.cookie('apostolictoken', refreshToken, {
+			httpOnly: true,
+			sameSite: 'None',
+			secure: true,
+			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		})
 		// Fetch artist profile for convenience
 		const profile = await ArtistModel.findOne({ userId: String(user._id) })
 		res.status(200).json({ success: true, artist: profile, accessToken, refreshToken })
