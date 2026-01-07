@@ -463,7 +463,9 @@ export const getArtistProfile = async (req, res) => {
 	try {
 		const profile = await ArtistModel.findOne({ userId: String(user._id) })
 		if (!profile) return res.status(404).json({ success: false, message: 'Artist profile not found' })
-		res.status(200).json({ success: true, artist: profile })
+		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile
+		artistObj.email = user.email
+		res.status(200).json({ success: true, artist: artistObj })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Error fetching profile', error: err.message })
 	}
@@ -525,6 +527,7 @@ export const getArtistStats = async (req, res) => {
 
 		res.status(200).json({
 			success: true,
+			artistEmail: user.email,
 			stats: {
 				totals: {
 					songs: songsCount,
@@ -636,7 +639,9 @@ export const login = async (req, res) => {
 		})
 		// Fetch artist profile for convenience
 		const profile = await ArtistModel.findOne({ userId: String(user._id) })
-		res.status(200).json({ success: true, artist: profile, accessToken, refreshToken })
+		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile
+		if (artistObj) artistObj.email = user.email
+		res.status(200).json({ success: true, artist: artistObj, artistEmail: user.email, accessToken, refreshToken })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist login error', error: err.message })
 	}
@@ -730,13 +735,13 @@ export default {
 	getMyArtists,
 	getLikedArtists,
 	getFollowedArtists,
-  register,
-  login,
-  verifyOtp,
-  resendOtp,
-  forgotPassword,
-  resetPassword,
-  isVerified,
+	register,
+	login,
+	verifyOtp,
+	resendOtp,
+	forgotPassword,
+	resetPassword,
+	isVerified,
 	uploadSong,
 	editSong,
 	removeSong,
