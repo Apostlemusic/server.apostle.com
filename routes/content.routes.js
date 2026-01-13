@@ -1,5 +1,37 @@
 import express from 'express'
-import controllers, { uploadMiddleware } from '../controllers/content.controllers.js'
+import {
+  createSong,
+  updateSong,
+  deleteSongs,
+  likeSong,
+  getAllSongs,
+  getMyLikedSongs,
+  getSongById,
+  getSongByTrackId,
+  getSongLyrics,
+  searchSongs,
+  getSongsByCategory,
+  getLikedSongs,
+  hideSong,
+  unhideSong,
+  newPlayList,
+  addToPlayList,
+  deletePlayList,
+  removeTrackFromPlayList,
+  getUserAllPlayList,
+  getUserPlayList,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getAllCategory,
+  getCategory,
+  createGenre,
+  updateGenre,
+  deleteGenre,
+  getAllGenre,
+  getGenre,
+  uploadMiddleware,
+} from '../controllers/content.controllers.js'
 import { AuthenticateUser, AuthenticateAdmin } from '../middleware/auth.js'
 import { requireDb } from '../middleware/requireDb.js'
 
@@ -8,40 +40,41 @@ const router = express.Router()
 router.use(requireDb)
 
 // ===== SONGS =====
-router.post('/songs', AuthenticateUser, uploadMiddleware, controllers.createSong)
-router.put('/songs', AuthenticateUser, uploadMiddleware, controllers.updateSong)
-router.delete('/songs', AuthenticateUser, controllers.deleteSongs)
-router.post('/songs/like', AuthenticateUser, controllers.likeSong)
-router.get('/songs', AuthenticateUser, controllers.getAllSongs)
-router.get('/songs/:id', AuthenticateUser, controllers.getSongById)
-router.get('/songs/track/:trackId', AuthenticateUser, controllers.getSongByTrackId)
-router.get('/songs/:id/lyrics', AuthenticateUser, controllers.getSongLyrics)
-router.get('/songs/search/:query', AuthenticateUser, controllers.searchSongs)
-router.get('/songs/category/:category', AuthenticateUser, controllers.getSongsByCategory)
-router.get('/songs/liked', AuthenticateUser, controllers.getLikedSongs)
-router.post('/songs/hide', AuthenticateUser, controllers.hideSong)
-router.post('/songs/unhide', AuthenticateUser, controllers.unhideSong)
+router.post('/songs', AuthenticateUser, uploadMiddleware, createSong)
+router.put('/songs', AuthenticateUser, uploadMiddleware, updateSong)
+router.delete('/songs', AuthenticateUser, deleteSongs)
+router.post('/songs/like', AuthenticateUser, likeSong)
+router.get('/songs', AuthenticateUser, getAllSongs)
+router.get('/songs/liked', AuthenticateUser, getMyLikedSongs)
+router.get('/songs/:id', AuthenticateUser, getSongById)
+router.get('/songs/track/:trackId', AuthenticateUser, getSongByTrackId)
+router.get('/songs/:id/lyrics', AuthenticateUser, getSongLyrics)
+router.get('/songs/search/:query', AuthenticateUser, searchSongs)
+router.get('/songs/category/:category', AuthenticateUser, getSongsByCategory)
+router.get('/songs/liked', AuthenticateUser, getLikedSongs)
+router.post('/songs/hide', AuthenticateUser, hideSong)
+router.post('/songs/unhide', AuthenticateUser, unhideSong)
 
 // ===== PLAYLISTS =====
-router.post('/playlists', AuthenticateUser, controllers.newPlayList)
-router.post('/playlists/add', AuthenticateUser, controllers.addToPlayList)
-router.delete('/playlists', AuthenticateUser, controllers.deletePlayList)
-router.post('/playlists/remove-track', AuthenticateUser, controllers.removeTrackFromPlayList)
-router.get('/playlists', AuthenticateUser, controllers.getUserAllPlayList)
-router.get('/playlists/:_id', AuthenticateUser, controllers.getUserPlayList)
+router.post('/playlists', AuthenticateUser, newPlayList)
+router.post('/playlists/add', AuthenticateUser, addToPlayList)
+router.delete('/playlists', AuthenticateUser, deletePlayList)
+router.post('/playlists/remove-track', AuthenticateUser, removeTrackFromPlayList)
+router.get('/playlists', AuthenticateUser, getUserAllPlayList)
+router.get('/playlists/:_id', AuthenticateUser, getUserPlayList)
 
 // ===== CATEGORIES =====
-router.post('/categories', AuthenticateAdmin, uploadMiddleware, controllers.createCategory)
-router.put('/categories', AuthenticateAdmin, uploadMiddleware, controllers.updateCategory)
-router.delete('/categories', AuthenticateAdmin, controllers.deleteCategory)
-router.get('/categories', controllers.getAllCategory)
-router.get('/categories/:categorySlug', controllers.getCategory)
+router.post('/categories', AuthenticateAdmin, uploadMiddleware, createCategory)
+router.put('/categories', AuthenticateAdmin, uploadMiddleware, updateCategory)
+router.delete('/categories', AuthenticateAdmin, deleteCategory)
+router.get('/categories', getAllCategory)
+router.get('/categories/:categorySlug', getCategory)
 
 // ===== GENRES =====
-router.post('/genres', AuthenticateAdmin, uploadMiddleware, controllers.createGenre)
-router.put('/genres', AuthenticateAdmin, uploadMiddleware, controllers.updateGenre)
-router.delete('/genres', AuthenticateAdmin, controllers.deleteGenre)
-router.get('/genres', controllers.getAllGenre)
-router.get('/genres/:genreSlug', controllers.getGenre)
+router.post('/genres', AuthenticateAdmin, uploadMiddleware, createGenre)
+router.put('/genres', AuthenticateAdmin, uploadMiddleware, updateGenre)
+router.delete('/genres', AuthenticateAdmin, deleteGenre)
+router.get('/genres', getAllGenre)
+router.get('/genres/:genreSlug', getGenre)
 
 export default router

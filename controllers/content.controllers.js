@@ -3,6 +3,7 @@ import SequenceModel from '../model/Sequence.js'
 import PlayListModel from '../model/PlayList.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
+import mongoose from 'mongoose'
 
 // Middleware placeholder for uploads (Cloudinary URLs provided by frontend)
 export const uploadMiddleware = (req, res, next) => next()
@@ -160,9 +161,15 @@ export const getAllSongs = async (req, res) => {
 
 export const getSongById = async (req, res) => {
   try {
-    const song = await SongModel.findById(req.params.id)
+    const { id } = req.params
+
+    // Guard: avoid CastError when a non-id string (e.g. "liked") hits this route
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid song id' })
+    }
+
+    const song = await SongModel.findById(id)
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-    // include parsed lyrics for convenience
     const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
     res.status(200).json({ success: true, song, lyricsParsed })
   } catch (err) {
@@ -214,6 +221,20 @@ export const getSongsByCategory = async (req, res) => {
 export const getLikedSongs = async (req, res) => {
   try {
     const userId = req.query.userId
+    const songs = await SongModel.find({ likes: userId })
+    res.status(200).json({ success: true, songs })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error fetching liked songs', error: err.message })
+  }
+}
+
+export const getMyLikedSongs = async (req, res) => {
+  try {
+    const userId = req.user && req.user._id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' })
+    }
+
     const songs = await SongModel.find({ likes: userId })
     res.status(200).json({ success: true, songs })
   } catch (err) {
@@ -437,6 +458,7 @@ export default {
   searchSongs,
   getSongsByCategory,
   getLikedSongs,
+  getMyLikedSongs,
   hideSong,
   unhideSong,
   // playlists
