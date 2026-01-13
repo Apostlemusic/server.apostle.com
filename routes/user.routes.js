@@ -3,6 +3,7 @@ import * as controllers from '../controllers/user.controller.js'
 import { AuthenticateUser } from '../middleware/auth.js'
 import { requireDb } from '../middleware/requireDb.js'
 import { validateRegister, validateLogin, validateForgotPassword, validateResetPassword } from '../middleware/validators.js'
+import authMiddleware from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -32,5 +33,13 @@ router.post('/isVerified', controllers.isVerified)
 router.get('/ping', (req, res) => res.status(200).json({ ok: true }))
 
 //PUT ROUTES
+// If the token is valid, authMiddleware should set req.user
+router.get('/verify-token', authMiddleware, (req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: 'Token is valid',
+    user: req.user,
+  })
+})
 
 export default router
