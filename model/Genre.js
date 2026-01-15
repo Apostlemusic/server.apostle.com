@@ -11,7 +11,8 @@ const GenereSchema = new mongoose.Schema({
     },
     genreImg: {
         type: String
-    }
+    },
+    imageUrl: { type: String },
 },
 { timestamps: true}
 )

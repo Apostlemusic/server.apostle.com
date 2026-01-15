@@ -31,8 +31,10 @@ import {
   getAllGenre,
   getGenre,
   uploadMiddleware,
+  recordPlayback,
+  getDiscover,
 } from '../controllers/content.controllers.js'
-import { AuthenticateUser, AuthenticateAdmin } from '../middleware/auth.js'
+import AuthenticateUser, { AuthenticateAdmin } from '../middleware/auth.js'
 import { requireDb } from '../middleware/requireDb.js'
 
 const router = express.Router()
@@ -46,7 +48,7 @@ router.delete('/songs', AuthenticateUser, deleteSongs)
 router.post('/songs/like', AuthenticateUser, likeSong)
 router.get('/songs', AuthenticateUser, getAllSongs)
 router.get('/songs/liked', AuthenticateUser, getMyLikedSongs)
-router.get('/songs/:id', AuthenticateUser, getSongById)
+router.get('/songs/:id', getSongById)
 router.get('/songs/track/:trackId', AuthenticateUser, getSongByTrackId)
 router.get('/songs/:id/lyrics', AuthenticateUser, getSongLyrics)
 router.get('/songs/search/:query', AuthenticateUser, searchSongs)
@@ -76,5 +78,9 @@ router.put('/genres', AuthenticateAdmin, uploadMiddleware, updateGenre)
 router.delete('/genres', AuthenticateAdmin, deleteGenre)
 router.get('/genres', getAllGenre)
 router.get('/genres/:genreSlug', getGenre)
+
+// ===== DISCOVER / PLAYS =====
+router.post('/plays', AuthenticateUser, recordPlayback)
+router.get('/discover', AuthenticateUser, getDiscover)
 
 export default router

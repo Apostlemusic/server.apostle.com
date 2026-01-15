@@ -11,6 +11,7 @@ import cors from 'cors';
 // auth routes merged into user routes; keep using userRoute for /api/auth
 import adminRoute from './routes/admin.routes.js';
 import userRoute from './routes/user.routes.js';
+import authRoute from './routes/auth.routes.js';
 // Legacy routes deprecated in favor of /api/content
 import artistRoute from './routes/artist.routes.js';
 import contentRoute from './routes/content.routes.js';
@@ -72,9 +73,7 @@ app.get('/health', (req, res) => {
         dbConnected: !!app.locals.dbConnected,
     })
 })
-app.use('/api/auth', userRoute);
-// Direct route for verification status to avoid any router-specific quirks
-app.get('/api/auth/isVerified', isVerified)
+app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 // also support plural `/api/songs` for clients that use that path
 // app.use('/api/songs', songRoute);

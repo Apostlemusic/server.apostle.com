@@ -126,3 +126,6 @@ export const AuthenticateAdmin = async (req, res, next) => {
     // Both tokens are invalid or missing
     return res.status(401).json({ success: false, data: 'Please Login' });
 };
+
+export { AuthenticateUser as authMiddleware } // optional alias for existing imports
+export default AuthenticateUser

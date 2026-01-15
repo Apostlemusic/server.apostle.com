@@ -549,6 +549,212 @@
           }]
         }
       ]
+    },
+    {
+      "name": "Misc",
+      "item": [
+        {
+          "name": "Songs - My Liked Songs (auth)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/songs/liked",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","songs","liked"]
+            }
+          }
+        },
+        {
+          "name": "Plays - Record playback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemType\": \"song\",\n  \"itemId\": \"{{songId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/plays",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","plays"]
+            }
+          }
+        },
+        {
+          "name": "Discover - Jump Back In",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/discover?section=jump-back-in&limit=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","discover"],
+              "query": [
+                { "key": "section", "value": "jump-back-in" },
+                { "key": "limit", "value": "7" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - New Releases",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/discover?section=new-releases&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","discover"],
+              "query": [
+                { "key": "section", "value": "new-releases" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Liked (Songs)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/discover?section=most-liked&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","discover"],
+              "query": [
+                { "key": "section", "value": "most-liked" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Listened (Songs)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/discover?section=most-listened&type=song&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","discover"],
+              "query": [
+                { "key": "section", "value": "most-listened" },
+                { "key": "type", "value": "song" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Listened (Categories)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/discover?section=most-listened&type=category&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","discover"],
+              "query": [
+                { "key": "section", "value": "most-listened" },
+                { "key": "type", "value": "category" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Categories - Create (with imageUrl)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Afro Gospel\",\n  \"imageUrl\": \"https://res.cloudinary.com/.../afro.png\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","categories"]
+            }
+          }
+        },
+        {
+          "name": "Categories - Update (with imageUrl)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categorySlug\": \"afro-gospel\",\n  \"imageUrl\": \"https://res.cloudinary.com/.../new.png\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","categories"]
+            }
+          }
+        },
+        {
+          "name": "Genres - Create (with imageUrl)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Worship\",\n  \"imageUrl\": \"https://res.cloudinary.com/.../worship.png\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/genres",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","genres"]
+            }
+          }
+        },
+        {
+          "name": "Genres - Update (with imageUrl)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"genreSlug\": \"worship\",\n  \"imageUrl\": \"https://res.cloudinary.com/.../new.png\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/content/genres",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","content","genres"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

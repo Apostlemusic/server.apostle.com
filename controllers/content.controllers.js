@@ -3,6 +3,7 @@ import SequenceModel from '../model/Sequence.js'
 import PlayListModel from '../model/PlayList.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
+import PlaybackModel from '../model/Playback.js'
 import mongoose from 'mongoose'
 
 // Middleware placeholder for uploads (Cloudinary URLs provided by frontend)
@@ -162,14 +163,16 @@ export const getAllSongs = async (req, res) => {
 export const getSongById = async (req, res) => {
   try {
     const { id } = req.params
-
-    // Guard: avoid CastError when a non-id string (e.g. "liked") hits this route
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: 'Invalid song id' })
     }
 
     const song = await SongModel.findById(id)
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
+
+    // Auto-record playback if user is authenticated (no-op otherwise)
+    await logPlayback(req, 'song', song._id)
+
     const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
     res.status(200).json({ success: true, song, lyricsParsed })
   } catch (err) {
@@ -179,12 +182,16 @@ export const getSongById = async (req, res) => {
 
 export const getSongByTrackId = async (req, res) => {
   try {
-    const song = await SongModel.findOne({ trackId: req.params.trackId })
+    const { trackId } = req.params
+    const song = await SongModel.findOne({ trackId })
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-    const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
-    res.status(200).json({ success: true, song, lyricsParsed })
+
+    // Auto-record playback (this route is already behind AuthenticateUser)
+    await logPlayback(req, 'song', song._id)
+
+    res.status(200).json({ success: true, song })
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Error fetching song by trackId', error: err.message })
+    res.status(500).json({ success: false, message: 'Error fetching song by track', error: err.message })
   }
 }
 
@@ -347,9 +354,17 @@ export const getUserPlayList = async (req, res) => {
 // ===== CATEGORIES =====
 export const createCategory = async (req, res) => {
   try {
-    const cat = new CategoryModel(req.body)
-    await cat.save()
-    res.status(201).json({ success: true, category: cat })
+    const { name, imageUrl } = req.body
+    if (!name) return res.status(400).json({ success: false, message: 'Category name is required' })
+
+    const payload = {
+      name: titleCase(name),
+      slug: toSlug(name),
+    }
+    if (typeof imageUrl === 'string' && imageUrl.trim()) payload.imageUrl = imageUrl.trim()
+
+    const category = await CategoryModel.create(payload)
+    res.status(201).json({ success: true, category })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating category', error: err.message })
   }
@@ -357,9 +372,20 @@ export const createCategory = async (req, res) => {
 
 export const updateCategory = async (req, res) => {
   try {
-    const { id, ...rest } = req.body
-    const cat = await CategoryModel.findByIdAndUpdate(id, rest, { new: true })
-    res.status(200).json({ success: true, category: cat })
+    const { categorySlug, name, imageUrl } = req.body
+    if (!categorySlug) return res.status(400).json({ success: false, message: 'categorySlug is required' })
+
+    const updates = {}
+    if (name) {
+      updates.name = titleCase(name)
+      updates.slug = toSlug(name)
+    }
+    if (imageUrl !== undefined) updates.imageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : imageUrl
+
+    const category = await CategoryModel.findOneAndUpdate({ slug: categorySlug }, updates, { new: true })
+    if (!category) return res.status(404).json({ success: false, message: 'Category not found' })
+
+    res.status(200).json({ success: true, category })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error updating category', error: err.message })
   }
@@ -397,9 +423,17 @@ export const getCategory = async (req, res) => {
 // ===== GENRES =====
 export const createGenre = async (req, res) => {
   try {
-    const g = new GenreModel(req.body)
-    await g.save()
-    res.status(201).json({ success: true, genre: g })
+    const { name, imageUrl } = req.body
+    if (!name) return res.status(400).json({ success: false, message: 'Genre name is required' })
+
+    const payload = {
+      name: titleCase(name),
+      slug: toSlug(name),
+    }
+    if (typeof imageUrl === 'string' && imageUrl.trim()) payload.imageUrl = imageUrl.trim()
+
+    const genre = await GenreModel.create(payload)
+    res.status(201).json({ success: true, genre })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating genre', error: err.message })
   }
@@ -407,9 +441,20 @@ export const createGenre = async (req, res) => {
 
 export const updateGenre = async (req, res) => {
   try {
-    const { id, ...rest } = req.body
-    const g = await GenreModel.findByIdAndUpdate(id, rest, { new: true })
-    res.status(200).json({ success: true, genre: g })
+    const { genreSlug, name, imageUrl } = req.body
+    if (!genreSlug) return res.status(400).json({ success: false, message: 'genreSlug is required' })
+
+    const updates = {}
+    if (name) {
+      updates.name = titleCase(name)
+      updates.slug = toSlug(name)
+    }
+    if (imageUrl !== undefined) updates.imageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : imageUrl
+
+    const genre = await GenreModel.findOneAndUpdate({ slug: genreSlug }, updates, { new: true })
+    if (!genre) return res.status(404).json({ success: false, message: 'Genre not found' })
+
+    res.status(200).json({ success: true, genre })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error updating genre', error: err.message })
   }
@@ -441,6 +486,137 @@ export const getGenre = async (req, res) => {
     res.status(200).json({ success: true, genre: g })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching genre', error: err.message })
+  }
+}
+
+// ===== PLAYBACK =====
+export const recordPlayback = async (req, res) => {
+  try {
+    const userId = req.user && req.user._id
+    if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+    const { itemType, itemId } = req.body
+    const normalizedType = itemType === 'audio' ? 'song' : itemType
+    if (!['song', 'album', 'category'].includes(normalizedType)) {
+      return res.status(400).json({ success: false, message: 'Invalid itemType' })
+    }
+    if (!mongoose.Types.ObjectId.isValid(itemId)) {
+      return res.status(400).json({ success: false, message: 'Invalid itemId' })
+    }
+
+    await PlaybackModel.create({ userId, itemType: normalizedType, itemId })
+    res.status(201).json({ success: true })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error recording playback', error: err.message })
+  }
+}
+
+export const getDiscover = async (req, res) => {
+  const section = String(req.query.section || 'jump-back-in')
+  const type = req.query.type ? String(req.query.type) : undefined
+  const limit = Math.min(Number(req.query.limit || 7), 50)
+
+  try {
+    switch (section) {
+      case 'jump-back-in': {
+        const userId = req.user && req.user._id
+        if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+        const match = { userId: new mongoose.Types.ObjectId(userId) }
+        if (type) {
+          match.itemType = type === 'audio' ? 'song' : type
+        }
+
+        const agg = await PlaybackModel.aggregate([
+          { $match: match },
+          { $sort: { playedAt: -1 } },
+          { $group: { _id: { itemType: '$itemType', itemId: '$itemId' }, playedAt: { $first: '$playedAt' } } },
+          { $sort: { playedAt: -1 } },
+          { $limit: limit },
+        ])
+
+        const songIds = agg.filter(a => a._id.itemType === 'song').map(a => a._id.itemId)
+        const categoryIds = agg.filter(a => a._id.itemType === 'category').map(a => a._id.itemId)
+
+        const songs = songIds.length ? await SongModel.find({ _id: { $in: songIds } }) : []
+        const cats = categoryIds.length ? await CategoryModel.find({ _id: { $in: categoryIds } }) : []
+
+        const idToSong = new Map(songs.map(s => [String(s._id), s]))
+        const idToCat = new Map(cats.map(c => [String(c._id), c]))
+
+        const items = []
+        for (const a of agg) {
+          const id = String(a._id.itemId)
+          if (a._id.itemType === 'song' && idToSong.get(id)) {
+            items.push({ type: 'song', playedAt: a.playedAt, item: idToSong.get(id) })
+          } else if (a._id.itemType === 'category' && idToCat.get(id)) {
+            items.push({ type: 'category', playedAt: a.playedAt, item: idToCat.get(id) })
+          }
+          // album support can be added once AlbumModel exists
+        }
+
+        return res.status(200).json({ success: true, section: 'jump-back-in', items })
+      }
+
+      case 'new-releases': {
+        const items = await SongModel.find().sort({ createdAt: -1, _id: -1 }).limit(limit)
+        return res.status(200).json({ success: true, section: 'new-releases', items })
+      }
+
+      case 'most-liked': {
+        const items = await SongModel.aggregate([
+          { $addFields: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
+          { $sort: { likesCount: -1 } },
+          { $limit: limit },
+        ])
+        return res.status(200).json({ success: true, section: 'most-liked', items })
+      }
+
+      case 'most-listened': {
+        const normalizedType = type === 'audio' ? 'song' : (type || 'song')
+        const agg = await PlaybackModel.aggregate([
+          { $match: { itemType: normalizedType } },
+          { $group: { _id: '$itemId', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: limit },
+        ])
+
+        const ids = agg.map(a => a._id)
+        let docs = []
+        if (normalizedType === 'song') {
+          docs = await SongModel.find({ _id: { $in: ids } })
+        } else if (normalizedType === 'category') {
+          docs = await CategoryModel.find({ _id: { $in: ids } })
+        }
+        const map = new Map(docs.map(d => [String(d._id), d]))
+        const items = agg.map(a => ({ type: normalizedType, count: a.count, item: map.get(String(a._id)) })).filter(x => x.item)
+
+        return res.status(200).json({ success: true, section: 'most-listened', items })
+      }
+
+      default:
+        return res.status(400).json({ success: false, message: 'Unknown section' })
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error fetching discover', error: err.message })
+  }
+}
+
+// Auto-play logger (no-op if user not authenticated)
+const logPlayback = async (req, itemType, itemId) => {
+  try {
+    const userId = req.user && req.user._id
+    if (!userId) return
+    if (!mongoose.Types.ObjectId.isValid(itemId)) return
+
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000)
+    await PlaybackModel.updateOne(
+      { userId: new mongoose.Types.ObjectId(userId), itemType, itemId: new mongoose.Types.ObjectId(itemId), playedAt: { $gte: tenMinsAgo } },
+      { $setOnInsert: { userId, itemType, itemId, playedAt: new Date() } },
+      { upsert: true }
+    )
+  } catch (_) {
+    // swallow errors to not impact main request
   }
 }
 
@@ -480,4 +656,7 @@ export default {
   deleteGenre,
   getAllGenre,
   getGenre,
+  // playback
+  recordPlayback,
+  getDiscover,
 }

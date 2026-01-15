@@ -1,0 +1,8 @@
+Jump-back-in:
+GET /api/content/discover?section=jump-back-in&limit=7
+New releases:
+GET /api/content/discover?section=new-releases&limit=20
+Most liked:
+GET /api/content/discover?section=most-liked&limit=20
+Most listened (songs):
+GET /api/content/discover?section=most-listened&type=song&limit=20
