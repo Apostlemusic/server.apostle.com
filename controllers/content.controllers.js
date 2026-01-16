@@ -3,6 +3,9 @@ import AlbumModel from '../model/Album.js'
 import ArtistModel from '../model/Artist.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
+import PlayListModel from '../model/PlayList.js'
+import SequenceModel from '../model/Sequence.js'
+import PlaybackModel from '../model/Playback.js'
 import mongoose from 'mongoose'
 import { toSlug, titleCase, ensureCategoriesExist, ensureGenresExist } from '../middleware/utils.js'
 
@@ -279,7 +282,10 @@ export const removeTrackFromPlayList = async (req, res) => {
 
 export const getUserAllPlayList = async (req, res) => {
   try {
-    const userId = req.query.userId
+    const userId = req.user && req.user._id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' })
+    }
     const pls = await PlayListModel.find({ userId })
     res.status(200).json({ success: true, playLists: pls })
   } catch (err) {
@@ -289,8 +295,15 @@ export const getUserAllPlayList = async (req, res) => {
 
 export const getUserPlayList = async (req, res) => {
   try {
+    const userId = req.user && req.user._id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' })
+    }
     const pl = await PlayListModel.findById(req.params._id)
     if (!pl) return res.status(404).json({ success: false, message: 'Playlist not found' })
+    if (String(pl.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+    }
     res.status(200).json({ success: true, playList: pl })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching playlist', error: err.message })

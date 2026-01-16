@@ -6,8 +6,8 @@ export const AuthenticateUser = async (req, res, next) => {
     // Prefer Authorization header if provided (supports SPA/mobile sending Bearer tokens)
     const authHeader = req.headers && req.headers.authorization;
     const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const accessToken = req.cookies.apostolicaccesstoken;
-    const refreshToken = req.cookies.apostolictoken;
+    const accessToken = req.cookies.apostolicaccesstoken || req.cookies.accessToken;
+    const refreshToken = req.cookies.apostolictoken || req.cookies.refreshToken;
 
     // console.log('TOKENS', accessToken, refreshToken);
 
@@ -58,12 +58,15 @@ export const AuthenticateUser = async (req, res, next) => {
 
             // Generate a new access token
             const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-            res.cookie('apostolicaccesstoken', newAccessToken, {
+            const isProd = process.env.NODE_ENV === 'production';
+            const cookieOptions = {
                 httpOnly: true,
-                sameSite: 'None',
-                secure: true,
+                sameSite: isProd ? 'None' : 'Lax',
+                secure: isProd,
                 maxAge: 15 * 60 * 1000, // 15 minutes
-            });
+            };
+            res.cookie('apostolicaccesstoken', newAccessToken, cookieOptions);
+            res.cookie('accessToken', newAccessToken, cookieOptions);
             req.user = user;
             return next();
         } catch (refreshError) {
