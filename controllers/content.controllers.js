@@ -564,6 +564,33 @@ export const getDiscover = async (req, res) => {
   }
 }
 
+// ===== SEARCH =====
+export const searchAll = async (req, res) => {
+  try {
+    const q = String(req.query.q || req.query.query || '').trim()
+    if (!q) return res.status(400).json({ success: false, message: 'Search query is required' })
+
+    const limit = Math.min(Number(req.query.limit || 10), 50)
+    const rx = new RegExp(q, 'i')
+
+    const [songs, albums, artists, categories, genres] = await Promise.all([
+      SongModel.find({ $or: [{ title: rx }, { name: rx }] }).limit(limit),
+      AlbumModel.find({ $or: [{ title: rx }, { name: rx }] }).limit(limit),
+      ArtistModel.find({ name: rx }).limit(limit),
+      CategoryModel.find({ $or: [{ name: rx }, { slug: rx }] }).limit(limit),
+      GenreModel.find({ $or: [{ name: rx }, { slug: rx }] }).limit(limit),
+    ])
+
+    res.status(200).json({
+      success: true,
+      query: q,
+      results: { songs, albums, artists, categories, genres },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error searching', error: err.message })
+  }
+}
+
 // Auto-play logger (no-op if user not authenticated)
 const logPlayback = async (req, itemType, itemId) => {
   try {
