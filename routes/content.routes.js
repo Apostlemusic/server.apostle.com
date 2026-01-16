@@ -1,5 +1,9 @@
 import express from 'express'
-import {
+import contentControllers from '../controllers/content.controllers.js'
+import AuthenticateUser, { AuthenticateAdmin } from '../middleware/auth.js'
+import { requireDb } from '../middleware/requireDb.js'
+
+const {
   createSong,
   updateSong,
   deleteSongs,
@@ -11,7 +15,6 @@ import {
   getSongLyrics,
   searchSongs,
   getSongsByCategory,
-  getLikedSongs,
   hideSong,
   unhideSong,
   newPlayList,
@@ -33,9 +36,7 @@ import {
   uploadMiddleware,
   recordPlayback,
   getDiscover,
-} from '../controllers/content.controllers.js'
-import AuthenticateUser, { AuthenticateAdmin } from '../middleware/auth.js'
-import { requireDb } from '../middleware/requireDb.js'
+} = contentControllers
 
 const router = express.Router()
 
@@ -47,13 +48,19 @@ router.put('/songs', AuthenticateUser, uploadMiddleware, updateSong)
 router.delete('/songs', AuthenticateUser, deleteSongs)
 router.post('/songs/like', AuthenticateUser, likeSong)
 router.get('/songs', AuthenticateUser, getAllSongs)
+
+// keep ONLY this one for cookie-auth user likes
 router.get('/songs/liked', AuthenticateUser, getMyLikedSongs)
+
 router.get('/songs/:id', getSongById)
 router.get('/songs/track/:trackId', AuthenticateUser, getSongByTrackId)
 router.get('/songs/:id/lyrics', AuthenticateUser, getSongLyrics)
 router.get('/songs/search/:query', AuthenticateUser, searchSongs)
 router.get('/songs/category/:category', AuthenticateUser, getSongsByCategory)
-router.get('/songs/liked', AuthenticateUser, getLikedSongs)
+
+// REMOVE this duplicate route (query-based legacy):
+// router.get('/songs/liked', AuthenticateUser, getLikedSongs)
+
 router.post('/songs/hide', AuthenticateUser, hideSong)
 router.post('/songs/unhide', AuthenticateUser, unhideSong)
 

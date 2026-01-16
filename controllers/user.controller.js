@@ -2,6 +2,7 @@ import UserModel from '../model/User.js'
 import OtpModel from '../model/Otp.js'
 import { generateOtp } from '../middleware/utils.js'
 import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
+import jwt from 'jsonwebtoken'
 
 // Return authenticated user's profile
 export const getUserProfile = async (req, res) => {
@@ -38,59 +39,87 @@ export const getUser = async (req, res) => {
 // ===== Auth handlers merged from auth.controllers.js =====
 // Register a new user
 export const register = async (req, res) => {
-	try {
-		const { email, password, name, phoneNumber } = req.body
-		const exists = await UserModel.findOne({ email })
-		if (exists) return res.status(400).json({ success: false, message: 'Email already exists' })
+  try {
+    const { email, password, name, phoneNumber } = req.body
+    const exists = await UserModel.findOne({ email })
+    if (exists) return res.status(400).json({ success: false, message: 'Email already exists' })
 
-		const user = new UserModel({ email, password, name, phoneNumber })
-		await user.save()
+    const user = new UserModel({ email, password, name, phoneNumber })
+    await user.save()
 
-		// generate and send activation OTP
-		try {
-			const otp = await generateOtp(user._id, email)
-			await activationEmail({ name: user.name || 'User', email, otp })
-		} catch (e) {
-			// email errors are non-fatal for registration; log and continue
-			console.error('Failed to send activation email', e.message || e)
-		}
+    try {
+      const otp = await generateOtp(user._id, email)
+      await activationEmail({ name: user.name || 'User', email, otp })
+    } catch (e) {
+      console.error('Failed to send activation email', e.message || e)
+    }
 
-		const accessToken = user.getAccessToken()
-		const refreshToken = user.getRefreshToken()
+    const accessToken = user.getAccessToken()
+    const refreshToken = user.getRefreshToken()
 
-		res.status(201).json({ success: true, user: { id: user._id, email: user.email, name: user.name }, accessToken, refreshToken, message: 'User created. Activation OTP sent to email.' })
-	} catch (err) {
-		res.status(500).json({ success: false, message: 'Register error', error: err.message })
-	}
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    })
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    })
+
+    res.status(201).json({
+      success: true,
+      user: { id: user._id, email: user.email, name: user.name },
+      tokens: { accessToken, refreshToken },
+      message: 'User created. Activation OTP sent to email.',
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Register error', error: err.message })
+  }
 }
 
 // Login existing user
 export const login = async (req, res) => {
-	try {
-		const { email, password } = req.body
-		const user = await UserModel.findOne({ email })
-		if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' })
+  try {
+    const { email, password } = req.body
+    const user = await UserModel.findOne({ email })
+    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' })
 
-		const match = await user.matchPassword(password)
-		if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' })
+    const match = await user.matchPassword(password)
+    if (!match) return res.status(401).json({ success: false, message: 'Invalid credentials' })
 
-		// Block login if account is not verified yet
-		if (!user.verified) {
-			return res.status(403).json({
-				success: false,
-				message: 'Account not verified. Please verify your OTP to continue.',
-			})
-		}
+    if (!user.verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account not verified. Please verify your OTP to continue.',
+      })
+    }
 
-		const accessToken = user.getAccessToken()
-		const refreshToken = user.getRefreshToken()
-		res.status(200).json({ success: true, user: { id: user._id, email: user.email, name: user.name }, accessToken, refreshToken })
-	} catch (err) {
-		res.status(500).json({ success: false, message: 'Login error', error: err.message })
-	}
+    const accessToken = user.getAccessToken()
+    const refreshToken = user.getRefreshToken()
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    })
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    })
+
+    res.status(200).json({
+      success: true,
+      user: { id: user._id, email: user.email, name: user.name },
+      tokens: { accessToken, refreshToken },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Login error', error: err.message })
+  }
 }
 
-// Keep remaining handlers as simple stubs for now
 export const verifyOtp = async (req, res) => {
 	try {
 		// Safely read inputs from body or query to avoid destructuring errors when body is undefined
@@ -165,11 +194,35 @@ export const resetPassword = async (req, res) => {
 }
 
 export const verifyToken = async (req, res) => {
-	res.status(501).json({ message: 'verifyToken handler not implemented' })
+  try {
+    const token =
+      req.cookies?.accessToken ||
+      req.headers?.authorization?.replace('Bearer ', '') ||
+      req.body?.token
+
+    if (!token) return res.status(401).json({ success: false, message: 'Token missing' })
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const user = await UserModel.findById(decoded?.id || decoded?._id).select('-password')
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' })
+
+    return res.status(200).json({
+      success: true,
+      valid: true,
+      decoded,
+      user,
+      tokenSource: req.cookies?.accessToken ? 'cookie' : (req.headers?.authorization ? 'header' : 'body'),
+    })
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' })
+  }
 }
 
 export const logout = async (req, res) => {
-	res.status(200).json({ success: true, message: 'Logged out (stub)' })
+  res.clearCookie('accessToken')
+  res.clearCookie('refreshToken')
+  res.status(200).json({ success: true, message: 'Logged out' })
 }
 
 // Check whether a user account is verified

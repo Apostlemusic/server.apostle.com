@@ -1,67 +1,11 @@
 import SongModel from '../model/Song.js'
-import SequenceModel from '../model/Sequence.js'
-import PlayListModel from '../model/PlayList.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
-import PlaybackModel from '../model/Playback.js'
 import mongoose from 'mongoose'
+import { toSlug, titleCase, ensureCategoriesExist, ensureGenresExist } from '../middleware/utils.js'
 
 // Middleware placeholder for uploads (Cloudinary URLs provided by frontend)
 export const uploadMiddleware = (req, res, next) => next()
-
-// Helpers: normalize and ensure taxonomy (categories/genres) exist
-const toSlug = (str = '') => {
-  return String(str)
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/\s+/g, '-')
-    .replace(/_/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-}
-
-const titleCase = (str = '') => {
-  return String(str)
-    .trim()
-    .toLowerCase()
-    .split(/[-\s_]+/)
-    .map(s => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(' ')
-}
-
-const normalizeArray = (input) => {
-  if (!input) return []
-  const arr = Array.isArray(input) ? input : [input]
-  const slugs = arr
-    .map(v => toSlug(v))
-    .filter(v => v && v.length > 0)
-  // de-duplicate while preserving order
-  return [...new Set(slugs)]
-}
-
-const ensureCategoriesExist = async (categories) => {
-  const slugs = normalizeArray(categories)
-  for (const slug of slugs) {
-    const existing = await CategoryModel.findOne({ slug })
-    if (!existing) {
-      await new CategoryModel({ name: titleCase(slug), slug }).save()
-    }
-  }
-  return slugs
-}
-
-const ensureGenresExist = async (genres) => {
-  const slugs = normalizeArray(genres)
-  for (const slug of slugs) {
-    const existing = await GenreModel.findOne({ slug })
-    if (!existing) {
-      // Genre name has unique constraint; derive consistent titleCase from slug
-      await new GenreModel({ name: titleCase(slug), slug }).save()
-    }
-  }
-  return slugs
-}
 
 // ===== SONGS =====
 export const createSong = async (req, res) => {
@@ -412,9 +356,18 @@ export const getAllCategory = async (req, res) => {
 
 export const getCategory = async (req, res) => {
   try {
-    const cat = await CategoryModel.findOne({ slug: req.params.categorySlug })
-    if (!cat) return res.status(404).json({ success: false, message: 'Category not found' })
-    res.status(200).json({ success: true, category: cat })
+    const slug = String(req.params.categorySlug || '').trim()
+    if (!slug) return res.status(400).json({ success: false, message: 'Category slug is required' })
+
+    const category = await CategoryModel.findOne({ slug })
+    if (!category) {
+      return res.status(404).json({ success: false, message: 'Category not found' })
+    }
+
+    const keys = [category.slug, category.name].filter(Boolean)
+    const songs = await SongModel.find({ category: { $in: keys } })
+
+    res.status(200).json({ success: true, category, songs })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching category', error: err.message })
   }
@@ -481,9 +434,16 @@ export const getAllGenre = async (req, res) => {
 
 export const getGenre = async (req, res) => {
   try {
-    const g = await GenreModel.findOne({ slug: req.params.genreSlug })
-    if (!g) return res.status(404).json({ success: false, message: 'Genre not found' })
-    res.status(200).json({ success: true, genre: g })
+    const slug = String(req.params.genreSlug || '').trim()
+    if (!slug) return res.status(400).json({ success: false, message: 'Genre slug is required' })
+
+    const genre = await GenreModel.findOne({ slug })
+    if (!genre) return res.status(404).json({ success: false, message: 'Genre not found' })
+
+    const keys = [genre.slug, genre.name].filter(Boolean)
+    const songs = await SongModel.find({ genre: { $in: keys } })
+
+    res.status(200).json({ success: true, genre, songs })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching genre', error: err.message })
   }

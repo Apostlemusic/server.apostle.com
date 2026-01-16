@@ -1,5 +1,3 @@
-
-
 import express from 'express'
 import * as controllers from '../controllers/artist.controllers.js'
 import { uploadMiddleware } from '../controllers/artist.controllers.js'
@@ -28,9 +26,9 @@ router.get('/isVerified', controllers.isVerified)
 
 
 //GET ROUTES
-
 router.get('/getAllArtists', AuthenticateUser, controllers.getAllArtists)
 router.get('/getArtistById/:artistId', controllers.getArtistById)
+router.get('/getArtistByName/:name', controllers.getArtistByName)
 router.get('/getMyArtists', AuthenticateAdmin, controllers.getMyArtists)
 router.get('/getLikedArtists', AuthenticateUser, controllers.getLikedArtists)
 router.get('/getFollowedArtists', AuthenticateUser, controllers.getFollowedArtists)

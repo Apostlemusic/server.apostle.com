@@ -1,0 +1,494 @@
+{
+  "info": {
+    "name": "Apostle API - User, Content & Artist",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "artistId", "value": "" },
+    { "key": "songId", "value": "" },
+    { "key": "albumId", "value": "" },
+    { "key": "trackId", "value": "" },
+    { "key": "categorySlug", "value": "" },
+    { "key": "genreSlug", "value": "" },
+    { "key": "playlistId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/register", "host": ["{{baseUrl}}"], "path": ["user", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Test User\",\n  \"phoneNumber\": \"+1234567890\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/login", "host": ["{{baseUrl}}"], "path": ["user", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/verifyOtp", "host": ["{{baseUrl}}"], "path": ["user", "verifyOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/resendOtp", "host": ["{{baseUrl}}"], "path": ["user", "resendOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/forgotPassword", "host": ["{{baseUrl}}"], "path": ["user", "forgotPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/resetPassword", "host": ["{{baseUrl}}"], "path": ["user", "resetPassword"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/user/verifyToken", "host": ["{{baseUrl}}"], "path": ["user", "verifyToken"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{accessToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/user/logout", "host": ["{{baseUrl}}"], "path": ["user", "logout"] }
+          }
+        },
+        {
+          "name": "Get Users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/user/getUsers", "host": ["{{baseUrl}}"], "path": ["user", "getUsers"] }
+          }
+        },
+        {
+          "name": "Get User By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/user/getUser/{{userId}}", "host": ["{{baseUrl}}"], "path": ["user", "getUser", "{{userId}}"] }
+          }
+        },
+        {
+          "name": "Profile Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/user/profile/me", "host": ["{{baseUrl}}"], "path": ["user", "profile", "me"] }
+          }
+        },
+        {
+          "name": "Is Verified",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/user/isVerified?email=test@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "isVerified"],
+              "query": [{ "key": "email", "value": "test@example.com" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content",
+      "item": [
+        {
+          "name": "Get All Songs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/songs", "host": ["{{baseUrl}}"], "path": ["content", "songs"] }
+          }
+        },
+        {
+          "name": "Get Song By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/songs/{{songId}}", "host": ["{{baseUrl}}"], "path": ["content", "songs", "{{songId}}"] }
+          }
+        },
+        {
+          "name": "Get Song By TrackId",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/songs/track/{{trackId}}", "host": ["{{baseUrl}}"], "path": ["content", "songs", "track", "{{trackId}}"] }
+          }
+        },
+        {
+          "name": "Search Songs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/songs/search/{{query}}", "host": ["{{baseUrl}}"], "path": ["content", "songs", "search", "{{query}}"] }
+          }
+        },
+        {
+          "name": "Songs By Category",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/songs/category/{{category}}", "host": ["{{baseUrl}}"], "path": ["content", "songs", "category", "{{category}}"] }
+          }
+        },
+        {
+          "name": "Categories - All",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/categories", "host": ["{{baseUrl}}"], "path": ["content", "categories"] }
+          }
+        },
+        {
+          "name": "Category By Slug",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/categories/{{categorySlug}}", "host": ["{{baseUrl}}"], "path": ["content", "categories", "{{categorySlug}}"] }
+          }
+        },
+        {
+          "name": "Genres - All",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/genres", "host": ["{{baseUrl}}"], "path": ["content", "genres"] }
+          }
+        },
+        {
+          "name": "Genre By Slug",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/genres/{{genreSlug}}", "host": ["{{baseUrl}}"], "path": ["content", "genres", "{{genreSlug}}"] }
+          }
+        },
+        {
+          "name": "Playlists - Get All (User)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/playlists", "host": ["{{baseUrl}}"], "path": ["content", "playlists"] }
+          }
+        },
+        {
+          "name": "Playlists - Get One",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/playlists/{{playlistId}}", "host": ["{{baseUrl}}"], "path": ["content", "playlists", "{{playlistId}}"] }
+          }
+        },
+        {
+          "name": "Discover",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/content/discover", "host": ["{{baseUrl}}"], "path": ["content", "discover"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Artist",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/register", "host": ["{{baseUrl}}"], "path": ["artist", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"artist@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Artist Name\",\n  \"type\": \"artist\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/login", "host": ["{{baseUrl}}"], "path": ["artist", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"artist@example.com\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/verifyOtp", "host": ["{{baseUrl}}"], "path": ["artist", "verifyOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"artist@example.com\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/resendOtp", "host": ["{{baseUrl}}"], "path": ["artist", "resendOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"artist@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/forgotPassword", "host": ["{{baseUrl}}"], "path": ["artist", "forgotPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"artist@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/resetPassword", "host": ["{{baseUrl}}"], "path": ["artist", "resetPassword"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"artist@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Is Verified",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/artist/isVerified?email=artist@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["artist", "isVerified"],
+              "query": [{ "key": "email", "value": "artist@example.com" }]
+            }
+          }
+        },
+        {
+          "name": "Get All Artists",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/getAllArtists", "host": ["{{baseUrl}}"], "path": ["artist", "getAllArtists"] }
+          }
+        },
+        {
+          "name": "Get Artist By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/getArtistById/{{artistId}}", "host": ["{{baseUrl}}"], "path": ["artist", "getArtistById", "{{artistId}}"] }
+          }
+        },
+        {
+          "name": "Get Artist By Name",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/getArtistByName/{{name}}", "host": ["{{baseUrl}}"], "path": ["artist", "getArtistByName", "{{name}}"] }
+          }
+        },
+        {
+          "name": "Follow Artist",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/followArtist", "host": ["{{baseUrl}}"], "path": ["artist", "followArtist"] },
+            "body": { "mode": "raw", "raw": "{\n  \"artistId\": \"{{artistId}}\",\n  \"userId\": \"{{userId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Like Artist",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/likeArtist", "host": ["{{baseUrl}}"], "path": ["artist", "likeArtist"] },
+            "body": { "mode": "raw", "raw": "{\n  \"artistId\": \"{{artistId}}\",\n  \"userId\": \"{{userId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Artist",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/deleteArtist", "host": ["{{baseUrl}}"], "path": ["artist", "deleteArtist"] },
+            "body": { "mode": "raw", "raw": "{\n  \"artistId\": \"{{artistId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Artist Profile Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/profile/me", "host": ["{{baseUrl}}"], "path": ["artist", "profile", "me"] }
+          }
+        },
+        {
+          "name": "Edit Artist Profile",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/profile/edit", "host": ["{{baseUrl}}"], "path": ["artist", "profile", "edit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"biography\": \"Artist bio\",\n  \"location\": \"City\"\n}" }
+          }
+        },
+        {
+          "name": "Artist Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/dashboard/stats", "host": ["{{baseUrl}}"], "path": ["artist", "dashboard", "stats"] }
+          }
+        },
+        {
+          "name": "Upload Song",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/song/upload", "host": ["{{baseUrl}}"], "path": ["artist", "song", "upload"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Edit Song",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/song/edit", "host": ["{{baseUrl}}"], "path": ["artist", "song", "edit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"songId\": \"{{songId}}\",\n  \"title\": \"Updated Title\"\n}" }
+          }
+        },
+        {
+          "name": "Remove Song",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/song/remove", "host": ["{{baseUrl}}"], "path": ["artist", "song", "remove"] },
+            "body": { "mode": "raw", "raw": "{\n  \"songId\": \"{{songId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Hide Song",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/song/hide", "host": ["{{baseUrl}}"], "path": ["artist", "song", "hide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"songId\": \"{{songId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Unhide Song",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/song/unhide", "host": ["{{baseUrl}}"], "path": ["artist", "song", "unhide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"songId\": \"{{songId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Songs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/song/my", "host": ["{{baseUrl}}"], "path": ["artist", "song", "my"] }
+          }
+        },
+        {
+          "name": "Upload Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/upload", "host": ["{{baseUrl}}"], "path": ["artist", "album", "upload"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Album Title\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"],\n  \"songs\": []\n}"
+            }
+          }
+        },
+        {
+          "name": "Edit Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/edit", "host": ["{{baseUrl}}"], "path": ["artist", "album", "edit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"albumId\": \"{{albumId}}\",\n  \"title\": \"Updated Album Title\"\n}" }
+          }
+        },
+        {
+          "name": "Remove Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/remove", "host": ["{{baseUrl}}"], "path": ["artist", "album", "remove"] },
+            "body": { "mode": "raw", "raw": "{\n  \"albumId\": \"{{albumId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Hide Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/hide", "host": ["{{baseUrl}}"], "path": ["artist", "album", "hide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"albumId\": \"{{albumId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Unhide Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/unhide", "host": ["{{baseUrl}}"], "path": ["artist", "album", "unhide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"albumId\": \"{{albumId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Albums",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/artist/album/my", "host": ["{{baseUrl}}"], "path": ["artist", "album", "my"] }
+          }
+        },
+        {
+          "name": "Upload Song To Album",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/artist/album/song/upload", "host": ["{{baseUrl}}"], "path": ["artist", "album", "song", "upload"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"albumId\": \"{{albumId}}\",\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

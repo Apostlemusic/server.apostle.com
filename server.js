@@ -8,15 +8,10 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //IMPORT ROUTES
-// auth routes merged into user routes; keep using userRoute for /api/auth
 import adminRoute from './routes/admin.routes.js';
 import userRoute from './routes/user.routes.js';
-import authRoute from './routes/auth.routes.js';
-// Legacy routes deprecated in favor of /api/content
 import artistRoute from './routes/artist.routes.js';
 import contentRoute from './routes/content.routes.js';
-import { isVerified } from './controllers/user.controller.js'
-
 
 
 // CORS setup
@@ -73,15 +68,10 @@ app.get('/health', (req, res) => {
         dbConnected: !!app.locals.dbConnected,
     })
 })
-app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
-// also support plural `/api/songs` for clients that use that path
-// app.use('/api/songs', songRoute);
-app.use('/api/admin', adminRoute)
-// Alias to support clients calling /api/admin/auth/* (e.g., /api/admin/auth/login)
-app.use('/api/admin/auth', adminRoute)
-// Deprecated mounts removed: /api/category, /api/song, /api/playlist
-app.use('/api/artist', artistRoute)
+app.use('/api/auth', userRoute); // Map auth to userRoute which contains auth endpoints
+app.use('/api/admin', adminRoute);
+app.use('/api/artist', artistRoute);
 app.use('/api/content', contentRoute)
 
 

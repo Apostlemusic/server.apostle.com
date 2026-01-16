@@ -1,14 +1,16 @@
 import ArtistModel from '../model/Artist.js'
+import SongModel from '../model/Song.js'
+import AlbumModel from '../model/Album.js'
+import mongoose from 'mongoose'
 import UserModel from '../model/User.js'
 import OtpModel from '../model/Otp.js'
 import { generateOtp } from '../middleware/utils.js'
 import { activationEmail, forgotPasswordEmail } from '../middleware/emailTemplate.js'
-import SongModel from '../model/Song.js'
-import AlbumModel from '../model/Album.js'
 import SequenceModel from '../model/Sequence.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import PlayListModel from '../model/PlayList.js'
+import { toSlug, titleCase, ensureCategoriesExist, ensureGenresExist } from '../middleware/utils.js'
 
 export const uploadMiddleware = (req, res, next) => next()
 
@@ -66,13 +68,51 @@ export const getAllArtists = async (req, res) => {
 }
 
 export const getArtistById = async (req, res) => {
-	try {
-		const a = await ArtistModel.findById(req.params.artistId)
-		if (!a) return res.status(404).json({ success: false, message: 'Artist not found' })
-		res.status(200).json({ success: true, artist: a })
-	} catch (err) {
-		res.status(500).json({ success: false, message: 'Error fetching artist', error: err.message })
-	}
+  try {
+    const id = String(req.params.id || '').trim()
+    const isObjectId = mongoose.Types.ObjectId.isValid(id)
+
+    const artist = isObjectId
+      ? await ArtistModel.findById(id)
+      : await ArtistModel.findOne({ $or: [{ artistId: id }, { userId: id }] })
+
+    if (!artist) {
+      return res.status(404).json({ success: false, message: 'Artist not found' })
+    }
+
+    const [songs, albums] = await Promise.all([
+      SongModel.find({ userId: artist.userId }),
+      AlbumModel.find({ artistUserId: artist.userId }),
+    ])
+
+    res.status(200).json({
+      success: true,
+      artist,
+      songs,
+      albums,
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error fetching artist', error: err.message })
+  }
+}
+
+export const getArtistByName = async (req, res) => {
+  try {
+    const name = String(req.params.name || '').trim()
+    if (!name) return res.status(400).json({ success: false, message: 'Artist name is required' })
+
+    const artist = await ArtistModel.findOne({ name: new RegExp(`^${name}$`, 'i') })
+    if (!artist) return res.status(404).json({ success: false, message: 'Artist not found' })
+
+    const [songs, albums] = await Promise.all([
+      SongModel.find({ userId: artist.userId }),
+      AlbumModel.find({ artistUserId: artist.userId }),
+    ])
+
+    res.status(200).json({ success: true, artist, songs, albums })
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error fetching artist by name', error: err.message })
+  }
 }
 
 export const getMyArtists = async (req, res) => {
@@ -732,6 +772,7 @@ export default {
 	likeArtist,
 	getAllArtists,
 	getArtistById,
+	getArtistByName,
 	getMyArtists,
 	getLikedArtists,
 	getFollowedArtists,
