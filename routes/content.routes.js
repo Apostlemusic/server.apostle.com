@@ -36,6 +36,7 @@ const {
   uploadMiddleware,
   recordPlayback,
   getDiscover,
+  searchAll,
 } = contentControllers
 
 const router = express.Router()
@@ -89,5 +90,6 @@ router.get('/genres/:genreSlug', getGenre)
 // ===== DISCOVER / PLAYS =====
 router.post('/plays', AuthenticateUser, recordPlayback)
 router.get('/discover', AuthenticateUser, getDiscover)
+router.get('/search', searchAll)
 
 export default router

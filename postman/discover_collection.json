@@ -1,0 +1,110 @@
+{
+  "name": "Discover",
+  "item": [
+    {
+      "name": "Discover - Jump Back In (default)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"]
+        }
+      }
+    },
+    {
+      "name": "Discover - Jump Back In (songs)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=song&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "jump-back-in" },
+            { "key": "type", "value": "song" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Discover - Jump Back In (category)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=category&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "jump-back-in" },
+            { "key": "type", "value": "category" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Discover - New Releases",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=new-releases&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "new-releases" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Discover - Most Liked",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=most-liked&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "most-liked" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Discover - Most Listened (songs)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=most-listened&type=song&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "most-listened" },
+            { "key": "type", "value": "song" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Discover - Most Listened (category)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/content/discover?section=most-listened&type=category&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["content", "discover"],
+          "query": [
+            { "key": "section", "value": "most-listened" },
+            { "key": "type", "value": "category" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    }
+  ]
+}

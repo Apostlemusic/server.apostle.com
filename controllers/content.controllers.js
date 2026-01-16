@@ -1,4 +1,6 @@
 import SongModel from '../model/Song.js'
+import AlbumModel from '../model/Album.js'
+import ArtistModel from '../model/Artist.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import mongoose from 'mongoose'
@@ -619,4 +621,6 @@ export default {
   // playback
   recordPlayback,
   getDiscover,
+  // search
+  searchAll,
 }
