@@ -80,10 +80,31 @@ export const AuthenticateUser = async (req, res, next) => {
 
 
 export const AuthenticateAdmin = async (req, res, next) => {
+    // Prefer Authorization header if provided (supports SPA/mobile sending Bearer tokens)
+    const authHeader = req.headers && req.headers.authorization;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     const accessToken = req.cookies.apostolicadminaccesstoken;
     const refreshToken = req.cookies.apostolicadmintoken;
 
     //console.log('TOKENS', accessToken, refreshToken);
+
+    // Try Authorization header first
+    if (headerToken) {
+        try {
+            const decoded = jwt.verify(headerToken, process.env.JWT_SECRET);
+            const user = await AdminModel.findById(decoded.id);
+            if (!user) {
+                return res.status(403).json({ success: false, data: 'Invalid token' });
+            }
+            req.user = user;
+            return next();
+        } catch (error) {
+            // If header token invalid, fall back to cookies logic below
+            if (error.name !== 'TokenExpiredError') {
+                // Do not short-circuit here; allow cookie-based refresh to proceed
+            }
+        }
+    }
 
     if (accessToken) {
         try {
