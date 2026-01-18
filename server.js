@@ -38,8 +38,8 @@ const corsOptions = {
     // Always allow; cors will echo the request origin, which is required when credentials: true
     origin: function (_origin, callback) { callback(null, true); },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    // Include common headers; cors also mirrors Access-Control-Request-Headers automatically
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+    // Allow any requested headers, plus common defaults
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'x-access-token'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
