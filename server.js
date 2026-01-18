@@ -39,7 +39,7 @@ const corsOptions = {
     origin: function (_origin, callback) { callback(null, true); },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     // Allow any requested headers, plus common defaults
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'x-access-token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'x-access-token', 'token'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
