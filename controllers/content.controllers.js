@@ -315,10 +315,16 @@ export const createCategory = async (req, res) => {
   try {
     const { name, imageUrl } = req.body
     if (!name) return res.status(400).json({ success: false, message: 'Category name is required' })
+    const normalizedName = titleCase(name)
+    const slug = toSlug(name)
+    const existing = await CategoryModel.findOne({ slug })
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Category already exists' })
+    }
 
     const payload = {
-      name: titleCase(name),
-      slug: toSlug(name),
+      name: normalizedName,
+      slug,
     }
     if (typeof imageUrl === 'string' && imageUrl.trim()) payload.imageUrl = imageUrl.trim()
 
@@ -393,10 +399,16 @@ export const createGenre = async (req, res) => {
   try {
     const { name, imageUrl } = req.body
     if (!name) return res.status(400).json({ success: false, message: 'Genre name is required' })
+    const normalizedName = titleCase(name)
+    const slug = toSlug(name)
+    const existing = await GenreModel.findOne({ slug })
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Genre already exists' })
+    }
 
     const payload = {
-      name: titleCase(name),
-      slug: toSlug(name),
+      name: normalizedName,
+      slug,
     }
     if (typeof imageUrl === 'string' && imageUrl.trim()) payload.imageUrl = imageUrl.trim()
 

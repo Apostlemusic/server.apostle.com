@@ -594,7 +594,16 @@ export const editArtistProfile = async (req, res) => {
 	try {
 		const profile = await ArtistModel.findOne({ userId: String(user._id) })
 		if (!profile) return res.status(404).json({ success: false, message: 'Artist profile not found' })
-		Object.assign(profile, req.body)
+		const updates = {}
+		if (req.body?.name !== undefined) updates.name = req.body.name
+		if (req.body?.about !== undefined) updates.about = req.body.about
+		if (req.body?.description !== undefined) updates.description = req.body.description
+		if (req.body?.type !== undefined) updates.type = req.body.type
+		const img = req.body?.profileImg ?? req.body?.imageUrl
+		if (img !== undefined) {
+			updates.profileImg = typeof img === 'string' ? img.trim() : img
+		}
+		Object.assign(profile, updates)
 		await profile.save()
 		res.status(200).json({ success: true, artist: profile })
 	} catch (err) {

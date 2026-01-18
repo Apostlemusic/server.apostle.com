@@ -7,11 +7,13 @@
     { "key": "baseUrl", "value": "http://localhost:3000/api" },
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
     { "key": "userId", "value": "" },
     { "key": "artistId", "value": "" },
     { "key": "songId", "value": "" },
     { "key": "albumId", "value": "" },
     { "key": "trackId", "value": "" },
+    { "key": "categoryId", "value": "" },
     { "key": "categorySlug", "value": "" },
     { "key": "genreSlug", "value": "" },
     { "key": "playlistId", "value": "" }
@@ -181,6 +183,51 @@
           "request": {
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/content/categories/{{categorySlug}}", "host": ["{{baseUrl}}"], "path": ["content", "categories", "{{categorySlug}}"] }
+          }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/content/categories", "host": ["{{baseUrl}}"], "path": ["content", "categories"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gospel\",\n  \"imageUrl\": \"https://example.com/category.jpg\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/content/categories", "host": ["{{baseUrl}}"], "path": ["content", "categories"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categorySlug\": \"{{categorySlug}}\",\n  \"name\": \"Updated Category\",\n  \"imageUrl\": \"https://example.com/category-updated.jpg\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/content/categories", "host": ["{{baseUrl}}"], "path": ["content", "categories"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{categoryId}}\"\n}"
+            }
           }
         },
         {
