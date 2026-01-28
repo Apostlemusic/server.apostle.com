@@ -1,5 +1,6 @@
 import UserModel from '../model/User.js'
 import OtpModel from '../model/Otp.js'
+import PlayListModel from '../model/PlayList.js'
 import { generateOtp } from '../middleware/utils.js'
 import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
 import jwt from 'jsonwebtoken'
@@ -225,6 +226,155 @@ export const logout = async (req, res) => {
   res.status(200).json({ success: true, message: 'Logged out' })
 }
 
+// Create a playlist for the authenticated user
+export const createPlaylist = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const name = String(req.body?.name || '').trim()
+		const tracksId = Array.isArray(req.body?.tracksId) ? req.body.tracksId : []
+
+		if (!name) {
+			return res.status(400).json({ success: false, message: 'Playlist name is required' })
+		}
+
+		const playlist = await PlayListModel.create({
+			name,
+			userId: String(u._id),
+			tracksId,
+		})
+
+		return res.status(201).json({ success: true, playlist })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error creating playlist', error: err.message })
+	}
+}
+
+// Get all playlists for the authenticated user
+export const getMyPlaylists = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const playlists = await PlayListModel.find({ userId: String(u._id) }).sort({ createdAt: -1 })
+		return res.status(200).json({ success: true, playlists })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error fetching playlists', error: err.message })
+	}
+}
+
+// Get a single playlist for the authenticated user
+export const getMyPlaylistById = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const playlist = await PlayListModel.findById(req.params.id)
+		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
+		if (String(playlist.userId) !== String(u._id)) {
+			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+		}
+
+		return res.status(200).json({ success: true, playlist })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error fetching playlist', error: err.message })
+	}
+}
+
+// Update playlist name or tracks
+export const updatePlaylist = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const playlist = await PlayListModel.findById(req.params.id)
+		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
+		if (String(playlist.userId) !== String(u._id)) {
+			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+		}
+
+		if (typeof req.body?.name === 'string' && req.body.name.trim()) {
+			playlist.name = req.body.name.trim()
+		}
+		if (Array.isArray(req.body?.tracksId)) {
+			playlist.tracksId = req.body.tracksId
+		}
+
+		await playlist.save()
+		return res.status(200).json({ success: true, playlist })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error updating playlist', error: err.message })
+	}
+}
+
+// Delete playlist
+export const deletePlaylist = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const playlist = await PlayListModel.findById(req.params.id)
+		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
+		if (String(playlist.userId) !== String(u._id)) {
+			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+		}
+
+		await playlist.deleteOne()
+		return res.status(200).json({ success: true, message: 'Playlist deleted' })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error deleting playlist', error: err.message })
+	}
+}
+
+// Add track to playlist
+export const addTrackToPlaylist = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const trackId = String(req.body?.trackId || '').trim()
+		if (!trackId) return res.status(400).json({ success: false, message: 'trackId is required' })
+
+		const playlist = await PlayListModel.findById(req.params.id)
+		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
+		if (String(playlist.userId) !== String(u._id)) {
+			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+		}
+
+		playlist.tracksId = playlist.tracksId || []
+		if (!playlist.tracksId.includes(trackId)) playlist.tracksId.push(trackId)
+		await playlist.save()
+
+		return res.status(200).json({ success: true, playlist })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error adding track', error: err.message })
+	}
+}
+
+// Remove track from playlist
+export const removeTrackFromPlaylist = async (req, res) => {
+	try {
+		const u = req.user
+		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const trackId = String(req.params.trackId || '').trim()
+		if (!trackId) return res.status(400).json({ success: false, message: 'trackId is required' })
+
+		const playlist = await PlayListModel.findById(req.params.id)
+		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
+		if (String(playlist.userId) !== String(u._id)) {
+			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+		}
+
+		playlist.tracksId = (playlist.tracksId || []).filter((t) => t !== trackId)
+		await playlist.save()
+		return res.status(200).json({ success: true, playlist })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error removing track', error: err.message })
+	}
+}
+
 // Check whether a user account is verified
 export const isVerified = async (req, res) => {
 	try {
@@ -258,4 +408,11 @@ export default {
 	verifyToken,
 	logout,
 	isVerified,
+	createPlaylist,
+	getMyPlaylists,
+	getMyPlaylistById,
+	updatePlaylist,
+	deletePlaylist,
+	addTrackToPlaylist,
+	removeTrackFromPlaylist,
 }

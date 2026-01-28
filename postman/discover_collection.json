@@ -1,10 +1,17 @@
 {
-  "name": "Discover",
+  "info": {
+    "name": "Discover",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://server-apostle-com.onrender.com/api" }
+  ],
   "item": [
     {
       "name": "Discover - Jump Back In (default)",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover",
           "host": ["{{baseUrl}}"],
@@ -16,6 +23,7 @@
       "name": "Discover - Jump Back In (songs)",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=song&limit=10",
           "host": ["{{baseUrl}}"],
@@ -32,6 +40,7 @@
       "name": "Discover - Jump Back In (category)",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=category&limit=10",
           "host": ["{{baseUrl}}"],
@@ -48,6 +57,7 @@
       "name": "Discover - New Releases",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=new-releases&limit=10",
           "host": ["{{baseUrl}}"],
@@ -63,6 +73,7 @@
       "name": "Discover - Most Liked",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=most-liked&limit=10",
           "host": ["{{baseUrl}}"],
@@ -78,6 +89,7 @@
       "name": "Discover - Most Listened (songs)",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=most-listened&type=song&limit=10",
           "host": ["{{baseUrl}}"],
@@ -94,6 +106,7 @@
       "name": "Discover - Most Listened (category)",
       "request": {
         "method": "GET",
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/content/discover?section=most-listened&type=category&limit=10",
           "host": ["{{baseUrl}}"],

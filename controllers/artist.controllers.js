@@ -61,7 +61,12 @@ export const likeArtist = async (req, res) => {
 export const getAllArtists = async (req, res) => {
 	try {
 		const artists = await ArtistModel.find()
-		res.status(200).json({ success: true, artists })
+		const artistsWithCounts = artists.map(a => ({
+			...(typeof a.toObject === 'function' ? a.toObject() : a),
+			likesCount: a.likes?.length || 0,
+			followersCount: a.followers?.length || 0,
+		}))
+		res.status(200).json({ success: true, artists: artistsWithCounts })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Error fetching artists', error: err.message })
 	}
@@ -85,9 +90,13 @@ export const getArtistById = async (req, res) => {
       AlbumModel.find({ artistUserId: artist.userId }),
     ])
 
+		const artistObj = typeof artist.toObject === 'function' ? artist.toObject() : artist
+		artistObj.likesCount = artist.likes?.length || 0
+		artistObj.followersCount = artist.followers?.length || 0
+
     res.status(200).json({
       success: true,
-      artist,
+	  artist: artistObj,
       songs,
       albums,
     })
@@ -109,7 +118,11 @@ export const getArtistByName = async (req, res) => {
       AlbumModel.find({ artistUserId: artist.userId }),
     ])
 
-    res.status(200).json({ success: true, artist, songs, albums })
+		const artistObj = typeof artist.toObject === 'function' ? artist.toObject() : artist
+		artistObj.likesCount = artist.likes?.length || 0
+		artistObj.followersCount = artist.followers?.length || 0
+
+	res.status(200).json({ success: true, artist: artistObj, songs, albums })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching artist by name', error: err.message })
   }

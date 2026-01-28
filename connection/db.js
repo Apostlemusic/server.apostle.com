@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import dns from 'dns';
 import { config } from 'dotenv';
 config();
 // Connect without deprecated options (they're ignored by modern drivers)
@@ -23,6 +24,19 @@ export async function connectDB() {
         throw new Error(msg);
     }
 
+    // Optional: override DNS servers to resolve SRV records in restrictive networks
+    const dnsServers = (process.env.MONGODB_DNS_SERVERS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (dnsServers.length) {
+        try {
+            dns.setServers(dnsServers);
+        } catch (e) {
+            console.warn('Failed to set custom DNS servers:', e && e.message ? e.message : e);
+        }
+    }
+
     try {
             // Fail fast and avoid buffering commands when disconnected
             mongoose.set('bufferCommands', false);
@@ -41,6 +55,12 @@ export async function connectDB() {
             console.error("- Ensure the user exists in Atlas and has access to the database you're connecting to.");
             console.error('- Make sure the connection string includes the database name and required options, e.g.:');
             console.error(`  mongodb+srv://<USER>:<PASSWORD>@cluster0.sqsvsph.mongodb.net/<DB_NAME>?retryWrites=true&w=majority`);
+        }
+
+        if (msg.includes('querysrv') || msg.includes('eservfail') || msg.includes('srv')) {
+            console.error('\nDNS SRV lookup failed for the MongoDB cluster. Try one of these fixes:');
+            console.error('- Set MONGODB_DNS_SERVERS=8.8.8.8,1.1.1.1 in your .env to use public DNS.');
+            console.error('- Or switch to a standard connection string (mongodb://...) from Atlas and set it as MONGODB_URI.');
         }
 
         console.error('\nRedacted connection string (for inspection):', redactUri(uri));
