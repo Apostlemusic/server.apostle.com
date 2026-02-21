@@ -17,7 +17,8 @@ const SongSchema = new mongoose.Schema({
         required: [true, 'Song Author is required']
     },
     artists: {
-        type: Array
+        type: [String],
+        default: []
     },
     trackId: {
         type: String,
@@ -44,6 +45,12 @@ const SongSchema = new mongoose.Schema({
     genre: {
         type: Array,
         default: []
+    },
+    contentType: {
+        type: String,
+        enum: ['song', 'podcast'],
+        default: 'song',
+        index: true
     },
     lyrics: {
         type: String

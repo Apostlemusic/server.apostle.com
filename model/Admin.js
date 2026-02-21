@@ -15,6 +15,12 @@ const AdminSchema = new mongoose.Schema({
         required: [ true,  'Email address is required' ],
         unique: [ true, 'Email address already exist' ]
     },
+    apostleId: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true,
+    },
     phoneNumber: {
         type: String,
         required: [ true,  'Phone number is required' ],

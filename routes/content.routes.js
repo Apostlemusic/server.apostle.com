@@ -15,6 +15,9 @@ const {
   getSongLyrics,
   searchSongs,
   getSongsByCategory,
+  getPodcasts,
+  getPodcastById,
+  getPodcastByTrackId,
   hideSong,
   unhideSong,
   newPlayList,
@@ -58,6 +61,11 @@ router.get('/songs/track/:trackId', AuthenticateUser, getSongByTrackId)
 router.get('/songs/:id/lyrics', AuthenticateUser, getSongLyrics)
 router.get('/songs/search/:query', AuthenticateUser, searchSongs)
 router.get('/songs/category/:category', AuthenticateUser, getSongsByCategory)
+
+// ===== PODCASTS =====
+router.get('/podcasts', getPodcasts)
+router.get('/podcasts/track/:trackId', AuthenticateUser, getPodcastByTrackId)
+router.get('/podcasts/:id', getPodcastById)
 
 // REMOVE this duplicate route (query-based legacy):
 // router.get('/songs/liked', AuthenticateUser, getLikedSongs)

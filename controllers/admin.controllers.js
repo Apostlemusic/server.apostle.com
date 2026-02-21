@@ -1,6 +1,6 @@
 import AdminModel from '../model/Admin.js'
 import OtpModel from '../model/Otp.js'
-import { generateOtp } from '../middleware/utils.js'
+import { generateOtp, toSlug, titleCase, generateApostleId } from '../middleware/utils.js'
 import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
 import UserModel from '../model/User.js'
 import ArtistModel from '../model/Artist.js'
@@ -10,6 +10,15 @@ import PlayListModel from '../model/PlayList.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import RecentPlaysModel from '../model/RecentPlays.js'
+
+const PODCAST_SLUG = toSlug('podcast')
+const buildPodcastQuery = () => ({
+	$or: [
+		{ contentType: 'podcast' },
+		{ category: { $in: [PODCAST_SLUG] } },
+		{ genre: { $in: [PODCAST_SLUG] } },
+	],
+})
 
 // Helper to set admin auth cookies in responses
 function setAdminAuthCookies(res, accessToken, refreshToken) {
@@ -38,7 +47,8 @@ export const register = async (req, res) => {
 		const exists = await AdminModel.findOne({ email })
 		if (exists) return res.status(400).json({ success: false, message: 'Email already exists' })
 
-		const admin = new AdminModel({ email, password, name, phoneNumber })
+		const apostleId = await generateApostleId({ role: 'admin' })
+		const admin = new AdminModel({ email, password, name, phoneNumber, apostleId })
 		await admin.save()
 
 		// generate and send activation OTP for admin
@@ -52,7 +62,7 @@ export const register = async (req, res) => {
 		const accessToken = admin.getAccessToken()
 		const refreshToken = admin.getRefreshToken()
 		setAdminAuthCookies(res, accessToken, refreshToken)
-		res.status(201).json({ success: true, admin: { id: admin._id, email: admin.email, name: admin.name }, accessToken, refreshToken, message: 'Admin created. Activation OTP sent to email.' })
+		res.status(201).json({ success: true, admin: { id: admin.apostleId || admin._id, email: admin.email, name: admin.name }, accessToken, refreshToken, message: 'Admin created. Activation OTP sent to email.' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Admin register error', error: err.message })
 	}
@@ -70,7 +80,7 @@ export const login = async (req, res) => {
 		const accessToken = admin.getAccessToken()
 		const refreshToken = admin.getRefreshToken()
 		setAdminAuthCookies(res, accessToken, refreshToken)
-		res.status(200).json({ success: true, admin: { id: admin._id, email: admin.email, name: admin.name }, accessToken, refreshToken })
+		res.status(200).json({ success: true, admin: { id: admin.apostleId || admin._id, email: admin.email, name: admin.name }, accessToken, refreshToken })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Admin login error', error: err.message })
 	}
@@ -150,6 +160,22 @@ export const logout = async (req, res) => {
 		res.status(200).json({ success: true, message: 'Logged out' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'logout error', error: err.message })
+	}
+}
+
+export const deleteMyAccount = async (req, res) => {
+	try {
+		const admin = req.user
+		if (!admin) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		await OtpModel.deleteMany({ $or: [{ userId: String(admin._id) }, { email: admin.email }] })
+		await AdminModel.deleteOne({ _id: admin._id })
+
+		res.clearCookie('apostolicadminaccesstoken', { httpOnly: true, sameSite: 'None', secure: true })
+		res.clearCookie('apostolicadmintoken', { httpOnly: true, sameSite: 'None', secure: true })
+		res.status(200).json({ success: true, message: 'Account deleted' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error deleting account', error: err.message })
 	}
 }
 
@@ -255,6 +281,107 @@ export const getServerStats = async (req, res) => {
 	}
 }
 
+// ===== Admin Podcast Categories =====
+export const createPodcastCategory = async (req, res) => {
+	try {
+		const { name, imageUrl } = req.body
+		if (!name) return res.status(400).json({ success: false, message: 'Category name is required' })
+		const normalizedName = titleCase(name)
+		const slug = toSlug(name)
+		const existing = await CategoryModel.findOne({ slug })
+		if (existing) {
+			if (existing.contentType === 'song') {
+				existing.contentType = 'both'
+				if (typeof imageUrl === 'string' && imageUrl.trim()) existing.imageUrl = imageUrl.trim()
+				await existing.save()
+				return res.status(200).json({ success: true, category: existing, message: 'Category upgraded to both' })
+			}
+			return res.status(409).json({ success: false, message: 'Category already exists' })
+		}
+
+		const payload = {
+			name: normalizedName,
+			slug,
+			contentType: 'podcast',
+		}
+		if (typeof imageUrl === 'string' && imageUrl.trim()) payload.imageUrl = imageUrl.trim()
+
+		const category = await CategoryModel.create(payload)
+		res.status(201).json({ success: true, category })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error creating podcast category', error: err.message })
+	}
+}
+
+export const updatePodcastCategory = async (req, res) => {
+	try {
+		const { categorySlug, name, imageUrl, contentType } = req.body
+		if (!categorySlug) return res.status(400).json({ success: false, message: 'categorySlug is required' })
+
+		const updates = {}
+		if (name) {
+			updates.name = titleCase(name)
+			updates.slug = toSlug(name)
+		}
+		if (imageUrl !== undefined) updates.imageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : imageUrl
+		if (contentType !== undefined) {
+			const normalizedType = typeof contentType === 'string' ? contentType.toLowerCase() : undefined
+			if (!['podcast', 'both'].includes(normalizedType)) {
+				return res.status(400).json({ success: false, message: 'Invalid contentType for podcast category' })
+			}
+			updates.contentType = normalizedType
+		}
+
+		const category = await CategoryModel.findOneAndUpdate({ slug: categorySlug }, updates, { new: true })
+		if (!category) return res.status(404).json({ success: false, message: 'Category not found' })
+
+		if (category.contentType === 'song' && !updates.contentType) {
+			category.contentType = 'both'
+			await category.save()
+		}
+
+		res.status(200).json({ success: true, category })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error updating podcast category', error: err.message })
+	}
+}
+
+export const deletePodcastCategory = async (req, res) => {
+	try {
+		const { id } = req.body
+		await CategoryModel.findByIdAndDelete(id)
+		res.status(200).json({ success: true, message: 'Category deleted' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error deleting podcast category', error: err.message })
+	}
+}
+
+export const getPodcastCategories = async (req, res) => {
+	try {
+		const categories = await CategoryModel.find({ contentType: { $in: ['podcast', 'both'] } })
+		res.status(200).json({ success: true, categories })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching podcast categories', error: err.message })
+	}
+}
+
+export const getPodcastCategory = async (req, res) => {
+	try {
+		const slug = String(req.params.categorySlug || '').trim()
+		if (!slug) return res.status(400).json({ success: false, message: 'Category slug is required' })
+
+		const category = await CategoryModel.findOne({ slug, contentType: { $in: ['podcast', 'both'] } })
+		if (!category) return res.status(404).json({ success: false, message: 'Category not found' })
+
+		const keys = [category.slug, category.name].filter(Boolean)
+		const podcasts = await SongModel.find({ category: { $in: keys }, ...buildPodcastQuery() })
+
+		res.status(200).json({ success: true, category, podcasts })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching podcast category', error: err.message })
+	}
+}
+
 export default {
 	register,
 	login,
@@ -265,4 +392,9 @@ export default {
 	logout,
 	getAdminProfile,
 	getServerStats,
+	createPodcastCategory,
+	updatePodcastCategory,
+	deletePodcastCategory,
+	getPodcastCategories,
+	getPodcastCategory,
 }

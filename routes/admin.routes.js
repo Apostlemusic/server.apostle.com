@@ -18,12 +18,20 @@ router.post('/resendOtp', controllers.resendOtp)
 router.post('/forgotPassword', validateForgotPassword, controllers.forgotPassword)
 router.post('/resetPassword', validateResetPassword, controllers.resetPassword)
 router.post('/logout', controllers.logout)
+router.delete('/account', AuthenticateAdmin, controllers.deleteMyAccount)
 
 // Admin server stats
 router.get('/stats', AuthenticateAdmin, controllers.getServerStats)
 
 // Admin profile
 router.get('/profile/me', AuthenticateAdmin, controllers.getAdminProfile)
+
+// ===== Podcast Categories (Admin) =====
+router.post('/categories/podcasts', AuthenticateAdmin, controllers.createPodcastCategory)
+router.put('/categories/podcasts', AuthenticateAdmin, controllers.updatePodcastCategory)
+router.delete('/categories/podcasts', AuthenticateAdmin, controllers.deletePodcastCategory)
+router.get('/categories/podcasts', AuthenticateAdmin, controllers.getPodcastCategories)
+router.get('/categories/podcasts/:categorySlug', AuthenticateAdmin, controllers.getPodcastCategory)
 
 
 

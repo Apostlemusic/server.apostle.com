@@ -8,6 +8,9 @@
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
     { "key": "adminAccessToken", "value": "" },
+    { "key": "podcasterId", "value": "" },
+    { "key": "podcasterName", "value": "" },
+    { "key": "podcastId", "value": "" },
     { "key": "userId", "value": "" },
     { "key": "artistId", "value": "" },
     { "key": "songId", "value": "" },
@@ -96,6 +99,14 @@
           "request": {
             "method": "POST",
             "url": { "raw": "{{baseUrl}}/user/logout", "host": ["{{baseUrl}}"], "path": ["user", "logout"] }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/user/account", "host": ["{{baseUrl}}"], "path": ["user", "account"] }
           }
         },
         {
@@ -264,6 +275,115 @@
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/content/discover", "host": ["{{baseUrl}}"], "path": ["content", "discover"] }
           }
+        },
+        {
+          "name": "Discover - Jump Back In (songs)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=song&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "jump-back-in" },
+                { "key": "type", "value": "song" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Jump Back In (category)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=jump-back-in&type=category&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "jump-back-in" },
+                { "key": "type", "value": "category" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - New Releases",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=new-releases&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "new-releases" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Liked",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=most-liked&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "most-liked" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Listened (songs)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=most-listened&type=song&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "most-listened" },
+                { "key": "type", "value": "song" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Most Listened (category)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=most-listened&type=category&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "most-listened" },
+                { "key": "type", "value": "category" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Discover - Podcasts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/content/discover?section=podcasts&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["content", "discover"],
+              "query": [
+                { "key": "section", "value": "podcasts" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
         }
       ]
     },
@@ -364,6 +484,18 @@
           }
         },
         {
+          "name": "Search Artists",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/artist/search?q=artist",
+              "host": ["{{baseUrl}}"],
+              "path": ["artist", "search"],
+              "query": [{ "key": "q", "value": "artist" }]
+            }
+          }
+        },
+        {
           "name": "Follow Artist",
           "request": {
             "method": "POST",
@@ -388,6 +520,14 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{baseUrl}}/artist/deleteArtist", "host": ["{{baseUrl}}"], "path": ["artist", "deleteArtist"] },
             "body": { "mode": "raw", "raw": "{\n  \"artistId\": \"{{artistId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/artist/account", "host": ["{{baseUrl}}"], "path": ["artist", "account"] }
           }
         },
         {
@@ -421,7 +561,7 @@
             "url": { "raw": "{{baseUrl}}/artist/song/upload", "host": ["{{baseUrl}}"], "path": ["artist", "song", "upload"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"]\n}"
+              "raw": "{\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"],\n  \"artistIds\": [\"{{artistId}}\"]\n}"
             }
           }
         },
@@ -533,6 +673,359 @@
               "mode": "raw",
               "raw": "{\n  \"albumId\": \"{{albumId}}\",\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\"\n}"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/register", "host": ["{{baseUrl}}"], "path": ["admin", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Admin\",\n  \"phoneNumber\": \"+1234567890\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/login", "host": ["{{baseUrl}}"], "path": ["admin", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/verifyOtp", "host": ["{{baseUrl}}"], "path": ["admin", "verifyOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/resendOtp", "host": ["{{baseUrl}}"], "path": ["admin", "resendOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/forgotPassword", "host": ["{{baseUrl}}"], "path": ["admin", "forgotPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/resetPassword", "host": ["{{baseUrl}}"], "path": ["admin", "resetPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/admin/logout", "host": ["{{baseUrl}}"], "path": ["admin", "logout"] }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/account", "host": ["{{baseUrl}}"], "path": ["admin", "account"] }
+          }
+        },
+        {
+          "name": "Profile Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/profile/me", "host": ["{{baseUrl}}"], "path": ["admin", "profile", "me"] }
+          }
+        },
+        {
+          "name": "Server Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/stats", "host": ["{{baseUrl}}"], "path": ["admin", "stats"] }
+          }
+        },
+        {
+          "name": "Create Podcast Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/admin/categories/podcasts", "host": ["{{baseUrl}}"], "path": ["admin", "categories", "podcasts"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Podcast Category\"\n}" }
+          }
+        },
+        {
+          "name": "Update Podcast Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/admin/categories/podcasts", "host": ["{{baseUrl}}"], "path": ["admin", "categories", "podcasts"] },
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"{{categoryId}}\",\n  \"name\": \"Updated Podcast Category\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Podcast Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/admin/categories/podcasts", "host": ["{{baseUrl}}"], "path": ["admin", "categories", "podcasts"] },
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"{{categoryId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get Podcast Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/categories/podcasts", "host": ["{{baseUrl}}"], "path": ["admin", "categories", "podcasts"] }
+          }
+        },
+        {
+          "name": "Get Podcast Category By Slug",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/categories/podcasts/{{categorySlug}}", "host": ["{{baseUrl}}"], "path": ["admin", "categories", "podcasts", "{{categorySlug}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Podcaster",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/register", "host": ["{{baseUrl}}"], "path": ["podcaster", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Podcaster Name\"\n}" }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/login", "host": ["{{baseUrl}}"], "path": ["podcaster", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/verifyOtp", "host": ["{{baseUrl}}"], "path": ["podcaster", "verifyOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/resendOtp", "host": ["{{baseUrl}}"], "path": ["podcaster", "resendOtp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/forgotPassword", "host": ["{{baseUrl}}"], "path": ["podcaster", "forgotPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/resetPassword", "host": ["{{baseUrl}}"], "path": ["podcaster", "resetPassword"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}" }
+          }
+        },
+        {
+          "name": "Is Verified",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/podcaster/isVerified?email=podcaster@example.com", "host": ["{{baseUrl}}"], "path": ["podcaster", "isVerified"], "query": [{ "key": "email", "value": "podcaster@example.com" }] }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/account", "host": ["{{baseUrl}}"], "path": ["podcaster", "account"] }
+          }
+        },
+        {
+          "name": "Get All Podcasters",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/getAllPodcasters", "host": ["{{baseUrl}}"], "path": ["podcaster", "getAllPodcasters"] }
+          }
+        },
+        {
+          "name": "Get Podcaster By Id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/podcaster/getPodcasterById/{{podcasterId}}", "host": ["{{baseUrl}}"], "path": ["podcaster", "getPodcasterById", "{{podcasterId}}"] }
+          }
+        },
+        {
+          "name": "Get Podcaster By Name",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/podcaster/getPodcasterByName/{{podcasterName}}", "host": ["{{baseUrl}}"], "path": ["podcaster", "getPodcasterByName", "{{podcasterName}}"] }
+          }
+        },
+        {
+          "name": "Follow Podcaster",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/follow", "host": ["{{baseUrl}}"], "path": ["podcaster", "follow"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcasterId\": \"{{podcasterId}}\",\n  \"userId\": \"{{userId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Like Podcaster",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/like", "host": ["{{baseUrl}}"], "path": ["podcaster", "like"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcasterId\": \"{{podcasterId}}\",\n  \"userId\": \"{{userId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/profile/me", "host": ["{{baseUrl}}"], "path": ["podcaster", "profile", "me"] }
+          }
+        },
+        {
+          "name": "Edit Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/profile/edit", "host": ["{{baseUrl}}"], "path": ["podcaster", "profile", "edit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Podcaster\",\n  \"about\": \"Podcasting about faith\",\n  \"profileImg\": \"https://example.com/podcaster.jpg\"\n}" }
+          }
+        },
+        {
+          "name": "Upload Podcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/upload", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "upload"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Podcast Title\",\n  \"author\": \"Podcaster Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\",\n  \"category\": [\"podcast\"],\n  \"genre\": [\"talk\"],\n  \"artistIds\": [\"{{artistId}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Edit Podcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/edit", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "edit"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcastId\": \"{{podcastId}}\",\n  \"title\": \"Updated Title\"\n}" }
+          }
+        },
+        {
+          "name": "Remove Podcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/remove", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "remove"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Hide Podcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/hide", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "hide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Unhide Podcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/unhide", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "unhide"] },
+            "body": { "mode": "raw", "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Podcasts",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/podcaster/podcast/my", "host": ["{{baseUrl}}"], "path": ["podcaster", "podcast", "my"] }
           }
         }
       ]

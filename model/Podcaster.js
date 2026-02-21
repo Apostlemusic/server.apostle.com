@@ -1,18 +1,14 @@
 import mongoose from "mongoose";
 
-const ArtistSchema = new mongoose.Schema({
+const PodcasterSchema = new mongoose.Schema({
     userId: {
         type: String
     },
-    artistId: {
+    podcasterId: {
         type: String,
         unique: true,
         sparse: true,
         index: true,
-    },
-    type: {
-        type: String,
-        enum: ["artist", "band", "church", "organization"]
     },
     name: {
         type: String
@@ -37,5 +33,5 @@ const ArtistSchema = new mongoose.Schema({
 },
 { timestamps: true})
 
-const ArtistModel = mongoose.model('topAirtist', ArtistSchema)
-export default ArtistModel
+const PodcasterModel = mongoose.model('podcaster', PodcasterSchema)
+export default PodcasterModel

@@ -6,11 +6,12 @@ import UserModel from '../model/User.js'
 import OtpModel from '../model/Otp.js'
 import { generateOtp } from '../middleware/utils.js'
 import { activationEmail, forgotPasswordEmail } from '../middleware/emailTemplate.js'
-import SequenceModel from '../model/Sequence.js'
+import RecentPlaysModel from '../model/RecentPlays.js'
+import PlaybackModel from '../model/Playback.js'
 import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import PlayListModel from '../model/PlayList.js'
-import { toSlug, titleCase, ensureCategoriesExist, ensureGenresExist } from '../middleware/utils.js'
+import { toSlug, titleCase, normalizeArray, ensureCategoriesExist, ensureGenresExist, generateApostleId, getUserKey } from '../middleware/utils.js'
 
 export const uploadMiddleware = (req, res, next) => next()
 
@@ -85,10 +86,12 @@ export const getArtistById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Artist not found' })
     }
 
-    const [songs, albums] = await Promise.all([
-      SongModel.find({ userId: artist.userId }),
-      AlbumModel.find({ artistUserId: artist.userId }),
-    ])
+		const artistKey = artist.artistId || artist.userId
+		const [songs, albums] = await Promise.all([
+			SongModel.find({ $or: [{ userId: artist.userId }, { artists: artistKey }] }),
+			AlbumModel.find({ artistUserId: artist.userId }),
+		])
+		const songsWithCounts = await attachListenCountsToSongs(songs)
 
 		const artistObj = typeof artist.toObject === 'function' ? artist.toObject() : artist
 		artistObj.likesCount = artist.likes?.length || 0
@@ -97,7 +100,7 @@ export const getArtistById = async (req, res) => {
     res.status(200).json({
       success: true,
 	  artist: artistObj,
-      songs,
+		  songs: songsWithCounts,
       albums,
     })
   } catch (err) {
@@ -113,16 +116,18 @@ export const getArtistByName = async (req, res) => {
     const artist = await ArtistModel.findOne({ name: new RegExp(`^${name}$`, 'i') })
     if (!artist) return res.status(404).json({ success: false, message: 'Artist not found' })
 
-    const [songs, albums] = await Promise.all([
-      SongModel.find({ userId: artist.userId }),
-      AlbumModel.find({ artistUserId: artist.userId }),
-    ])
+		const artistKey = artist.artistId || artist.userId
+		const [songs, albums] = await Promise.all([
+			SongModel.find({ $or: [{ userId: artist.userId }, { artists: artistKey }] }),
+			AlbumModel.find({ artistUserId: artist.userId }),
+		])
+		const songsWithCounts = await attachListenCountsToSongs(songs)
 
 		const artistObj = typeof artist.toObject === 'function' ? artist.toObject() : artist
 		artistObj.likesCount = artist.likes?.length || 0
 		artistObj.followersCount = artist.followers?.length || 0
 
-	res.status(200).json({ success: true, artist: artistObj, songs, albums })
+	res.status(200).json({ success: true, artist: artistObj, songs: songsWithCounts, albums })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching artist by name', error: err.message })
   }
@@ -140,27 +145,99 @@ export const getFollowedArtists = async (req, res) => {
 	res.status(501).json({ message: 'getFollowedArtists not implemented' })
 }
 
+export const searchArtists = async (req, res) => {
+	try {
+		const q = String(req.query.q || req.query.query || '').trim()
+		if (!q) return res.status(400).json({ success: false, message: 'Search query is required' })
+		const limit = Math.min(Number(req.query.limit || 10), 50)
+		const rx = new RegExp(q, 'i')
+		const artists = await ArtistModel.find({ name: rx }).limit(limit)
+		const results = artists.map(a => ({
+			artistId: a.artistId,
+			name: a.name,
+			profileImg: a.profileImg,
+			type: a.type,
+		}))
+		return res.status(200).json({ success: true, artists: results })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error searching artists', error: err.message })
+	}
+}
+
 // ===== Artist content management: Songs =====
 function requireArtist(req, res) {
 	const user = req.user
 	if (!user) return { error: res.status(401).json({ success: false, message: 'Authentication required' }) }
 	if (user.role !== 'artist') return { error: res.status(403).json({ success: false, message: 'Artist account required' }) }
-	return { user }
+	const userKey = getUserKey(user)
+	const userKeys = [userKey, String(user._id)].filter(Boolean)
+	return { user, userKey, userKeys }
+}
+
+function normalizeArtistIds(input) {
+	if (!input) return []
+	const arr = Array.isArray(input) ? input : [input]
+	const ids = arr
+		.map((item) => {
+			if (typeof item === 'string') return item.trim()
+			if (item && typeof item === 'object') return String(item.artistId || item.id || '').trim()
+			return ''
+		})
+		.filter(Boolean)
+	return [...new Set(ids)]
+}
+
+async function attachListenCountsToSongs(songs) {
+	const list = Array.isArray(songs) ? songs : [songs]
+	if (list.length === 0) return []
+	const ids = list.map(s => s._id).filter(Boolean)
+	const agg = await PlaybackModel.aggregate([
+		{ $match: { itemType: 'song', itemId: { $in: ids } } },
+		{ $group: { _id: '$itemId', count: { $sum: 1 } } },
+	])
+	const map = new Map(agg.map(a => [String(a._id), a.count]))
+	return list.map((song) => {
+		const obj = typeof song?.toObject === 'function' ? song.toObject() : song
+		const entries = Object.entries(obj || {})
+		const nextEntries = []
+		let inserted = false
+		for (const [key, value] of entries) {
+			nextEntries.push([key, value])
+			if (key === 'trackUrl') {
+				nextEntries.push(['listensCount', map.get(String(song._id)) || 0])
+				inserted = true
+			}
+		}
+		if (!inserted) {
+			nextEntries.push(['listensCount', map.get(String(song._id)) || 0])
+		}
+		return Object.fromEntries(nextEntries)
+	})
 }
 
 export const uploadSong = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { user, userKey, error } = requireArtist(req, res); if (error) return
 	try {
-		const payload = { ...req.body, userId: String(user._id), hidden: false }
+		const profile = await ArtistModel.findOne({ userId: { $in: [userKey, String(user._id)].filter(Boolean) } })
+		const primaryArtistId = profile?.artistId
+		const collaboratorIds = normalizeArtistIds(req.body?.artistIds ?? req.body?.collaborators ?? req.body?.artists)
+		const artists = primaryArtistId
+			? [primaryArtistId, ...collaboratorIds.filter((id) => id !== primaryArtistId)]
+			: collaboratorIds
+
+		const payload = { ...req.body, userId: userKey, hidden: false, artists }
 		// Generate sequential trackId if missing
 		if (!payload.trackId) {
-			const seq = await SequenceModel.findOneAndUpdate(
-				{ name: 'song' },
-				{ $inc: { value: 1 } },
-				{ new: true, upsert: true }
-			)
-			const padded = String(seq.value).padStart(6, '0')
-			payload.trackId = `TRK-${padded}`
+			payload.trackId = await generateApostleId({ role: 'artist', type: 'TRK' })
+		}
+		const categorySlugs = normalizeArray(payload.category)
+		const genreSlugs = normalizeArray(payload.genre)
+		const podcastSlug = toSlug('podcast')
+		const isPodcast = categorySlugs.includes(podcastSlug) || genreSlugs.includes(podcastSlug)
+		payload.category = await ensureCategoriesExist(payload.category, { contentType: isPodcast ? 'podcast' : undefined })
+		payload.genre = await ensureGenresExist(payload.genre)
+		if (!payload.contentType) {
+			payload.contentType = isPodcast ? 'podcast' : 'song'
 		}
 		const song = new SongModel(payload)
 		await song.save()
@@ -171,13 +248,37 @@ export const uploadSong = async (req, res) => {
 }
 
 export const editSong = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { user, userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { songId, ...rest } = req.body
 		const song = await SongModel.findById(songId)
 		if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-		if (String(song.userId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of song' })
-		Object.assign(song, rest)
+		if (!userKeys.includes(String(song.userId))) return res.status(403).json({ success: false, message: 'Not owner of song' })
+		const categorySlugs = rest.category ? normalizeArray(rest.category) : (song.category || [])
+		const genreSlugs = rest.genre ? normalizeArray(rest.genre) : (song.genre || [])
+		const podcastSlug = toSlug('podcast')
+		const isPodcast = categorySlugs.includes(podcastSlug) || genreSlugs.includes(podcastSlug)
+		if (rest.category) {
+			rest.category = await ensureCategoriesExist(rest.category, { contentType: isPodcast ? 'podcast' : undefined })
+		}
+		if (rest.genre) {
+			rest.genre = await ensureGenresExist(rest.genre)
+		}
+		if (rest.artistIds || rest.collaborators || rest.artists) {
+			const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
+			const primaryArtistId = profile?.artistId
+			const collaboratorIds = normalizeArtistIds(rest.artistIds ?? rest.collaborators ?? rest.artists)
+			song.artists = primaryArtistId
+				? [primaryArtistId, ...collaboratorIds.filter((id) => id !== primaryArtistId)]
+				: collaboratorIds
+		}
+		const { artistIds: _aIgnored, collaborators: _cIgnored, ...restPayload } = rest
+		Object.assign(song, restPayload)
+		if (rest.contentType) {
+			song.contentType = rest.contentType
+		} else if (rest.category || rest.genre) {
+			song.contentType = isPodcast ? 'podcast' : 'song'
+		}
 		await song.save()
 		res.status(200).json({ success: true, song })
 	} catch (err) {
@@ -186,12 +287,12 @@ export const editSong = async (req, res) => {
 }
 
 export const removeSong = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { songId } = req.body
 		const song = await SongModel.findById(songId)
 		if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-		if (String(song.userId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of song' })
+		if (!userKeys.includes(String(song.userId))) return res.status(403).json({ success: false, message: 'Not owner of song' })
 		await song.deleteOne()
 		res.status(200).json({ success: true, message: 'Song removed' })
 	} catch (err) {
@@ -200,12 +301,12 @@ export const removeSong = async (req, res) => {
 }
 
 export const hideSong = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { songId } = req.body
 		const song = await SongModel.findById(songId)
 		if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-		if (String(song.userId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of song' })
+		if (!userKeys.includes(String(song.userId))) return res.status(403).json({ success: false, message: 'Not owner of song' })
 		song.hidden = true
 		await song.save()
 		res.status(200).json({ success: true, song })
@@ -215,12 +316,12 @@ export const hideSong = async (req, res) => {
 }
 
 export const unhideSong = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { songId } = req.body
 		const song = await SongModel.findById(songId)
 		if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
-		if (String(song.userId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of song' })
+		if (!userKeys.includes(String(song.userId))) return res.status(403).json({ success: false, message: 'Not owner of song' })
 		song.hidden = false
 		await song.save()
 		res.status(200).json({ success: true, song })
@@ -230,10 +331,18 @@ export const unhideSong = async (req, res) => {
 }
 
 export const getMySongs = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
-		const songs = await SongModel.find({ userId: String(user._id) })
-		res.status(200).json({ success: true, songs })
+		const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
+		const artistKey = profile?.artistId
+		const songs = await SongModel.find({
+			$or: [
+				{ userId: { $in: userKeys } },
+				...(artistKey ? [{ artists: artistKey }] : []),
+			],
+		})
+		const songsWithCounts = await attachListenCountsToSongs(songs)
+		res.status(200).json({ success: true, songs: songsWithCounts })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Error fetching my songs', error: err.message })
 	}
@@ -241,8 +350,11 @@ export const getMySongs = async (req, res) => {
 
 // ===== Artist content management: Albums =====
 export const uploadAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { user, userKey, error } = requireArtist(req, res); if (error) return
 	try {
+		const profile = await ArtistModel.findOne({ userId: { $in: [userKey, String(user._id)].filter(Boolean) } })
+		const primaryArtistId = profile?.artistId
+
 		// Helpers for taxonomy normalization and upsert
 		const toSlug = (str = '') => String(str).trim().toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '-').replace(/_/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
 		const titleCase = (str = '') => String(str).trim().toLowerCase().split(/[-\s_]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
@@ -269,15 +381,9 @@ export const uploadAlbum = async (req, res) => {
 			return slugs
 		}
 
-		const payload = { ...req.body, artistUserId: String(user._id), hidden: false }
+		const payload = { ...req.body, artistUserId: userKey, hidden: false }
 		// Generate sequential albumId
-		const albumSeq = await SequenceModel.findOneAndUpdate(
-			{ name: 'album' },
-			{ $inc: { value: 1 } },
-			{ new: true, upsert: true }
-		)
-		const albumPadded = String(albumSeq.value).padStart(6, '0')
-		payload.albumId = `ALB-${albumPadded}`
+		payload.albumId = await generateApostleId({ role: 'artist', type: 'ALB' })
 		payload.category = await ensureCategoriesExist(payload.category)
 		payload.genre = await ensureGenresExist(payload.genre)
 
@@ -293,24 +399,28 @@ export const uploadAlbum = async (req, res) => {
 						return res.status(400).json({ success: false, message: `Song field \`${key}\` is required` })
 					}
 				}
+				const collaboratorIds = normalizeArtistIds(s?.artistIds ?? s?.collaborators ?? s?.artists)
+				const artists = primaryArtistId
+					? [primaryArtistId, ...collaboratorIds.filter((id) => id !== primaryArtistId)]
+					: collaboratorIds
 				const songPayload = {
 					...s,
-					userId: String(user._id),
+					userId: userKey,
 					hidden: false,
+					artists,
 				}
 				// Generate trackId if missing
 				if (!songPayload.trackId) {
-					const seq = await SequenceModel.findOneAndUpdate(
-						{ name: 'song' },
-						{ $inc: { value: 1 } },
-						{ new: true, upsert: true }
-					)
-					const padded = String(seq.value).padStart(6, '0')
-					songPayload.trackId = `TRK-${padded}`
+					songPayload.trackId = await generateApostleId({ role: 'artist', type: 'TRK' })
 				}
 				// If song has taxonomy, normalize and ensure exist
 				songPayload.category = await ensureCategoriesExist(songPayload.category || payload.category)
 				songPayload.genre = await ensureGenresExist(songPayload.genre || payload.genre)
+				if (!songPayload.contentType) {
+					const podcastSlug = toSlug('podcast')
+					const isPodcast = (songPayload.category || []).includes(podcastSlug) || (songPayload.genre || []).includes(podcastSlug)
+					songPayload.contentType = isPodcast ? 'podcast' : 'song'
+				}
 				const song = new SongModel(songPayload)
 				await song.save()
 				trackIds.push(song.trackId)
@@ -338,12 +448,12 @@ export const uploadAlbum = async (req, res) => {
 }
 
 export const editAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { albumId, ...rest } = req.body
 		const album = await AlbumModel.findById(albumId)
 		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
-		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+		if (!userKeys.includes(String(album.artistUserId))) return res.status(403).json({ success: false, message: 'Not owner of album' })
 		// taxonomy handling
 		const toSlug = (str = '') => String(str).trim().toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '-').replace(/_/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
 		const titleCase = (str = '') => String(str).trim().toLowerCase().split(/[-\s_]+/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
@@ -381,12 +491,12 @@ export const editAlbum = async (req, res) => {
 }
 
 export const removeAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { albumId } = req.body
 		const album = await AlbumModel.findById(albumId)
 		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
-		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+		if (!userKeys.includes(String(album.artistUserId))) return res.status(403).json({ success: false, message: 'Not owner of album' })
 		await album.deleteOne()
 		res.status(200).json({ success: true, message: 'Album removed' })
 	} catch (err) {
@@ -395,12 +505,12 @@ export const removeAlbum = async (req, res) => {
 }
 
 export const hideAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { albumId } = req.body
 		const album = await AlbumModel.findById(albumId)
 		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
-		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+		if (!userKeys.includes(String(album.artistUserId))) return res.status(403).json({ success: false, message: 'Not owner of album' })
 		album.hidden = true
 		await album.save()
 		res.status(200).json({ success: true, album })
@@ -410,12 +520,12 @@ export const hideAlbum = async (req, res) => {
 }
 
 export const unhideAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { albumId } = req.body
 		const album = await AlbumModel.findById(albumId)
 		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
-		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+		if (!userKeys.includes(String(album.artistUserId))) return res.status(403).json({ success: false, message: 'Not owner of album' })
 		album.hidden = false
 		await album.save()
 		res.status(200).json({ success: true, album })
@@ -425,9 +535,9 @@ export const unhideAlbum = async (req, res) => {
 }
 
 export const getMyAlbums = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
-		const albums = await AlbumModel.find({ artistUserId: String(user._id) })
+		const albums = await AlbumModel.find({ artistUserId: { $in: userKeys } })
 		res.status(200).json({ success: true, albums })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Error fetching my albums', error: err.message })
@@ -436,13 +546,13 @@ export const getMyAlbums = async (req, res) => {
 
 // Upload a single song directly into an existing album (generate trackId and update album.tracksId)
 export const uploadSongToAlbum = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKey, userKeys, error } = requireArtist(req, res); if (error) return
 	try {
 		const { albumId, ...songInput } = req.body
 		if (!albumId) return res.status(400).json({ success: false, message: 'albumId is required' })
 		const album = await AlbumModel.findById(albumId)
 		if (!album) return res.status(404).json({ success: false, message: 'Album not found' })
-		if (String(album.artistUserId) !== String(user._id)) return res.status(403).json({ success: false, message: 'Not owner of album' })
+		if (!userKeys.includes(String(album.artistUserId))) return res.status(403).json({ success: false, message: 'Not owner of album' })
 
 		// Basic required song fields (trackId optional - will be generated)
 		const required = ['trackUrl', 'title', 'author', 'trackImg']
@@ -478,20 +588,21 @@ export const uploadSongToAlbum = async (req, res) => {
 			return slugs
 		}
 
+		const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
+		const primaryArtistId = profile?.artistId
+		const collaboratorIds = normalizeArtistIds(songInput?.artistIds ?? songInput?.collaborators ?? songInput?.artists)
+		const artists = primaryArtistId
+			? [primaryArtistId, ...collaboratorIds.filter((id) => id !== primaryArtistId)]
+			: collaboratorIds
 		const songPayload = {
 			...songInput,
-			userId: String(user._id),
+			userId: userKey,
 			hidden: false,
+			artists,
 		}
 		// Generate trackId if missing
 		if (!songPayload.trackId) {
-			const seq = await SequenceModel.findOneAndUpdate(
-				{ name: 'song' },
-				{ $inc: { value: 1 } },
-				{ new: true, upsert: true }
-			)
-			const padded = String(seq.value).padStart(6, '0')
-			songPayload.trackId = `TRK-${padded}`
+			songPayload.trackId = await generateApostleId({ role: 'artist', type: 'TRK' })
 		}
 		// Normalize taxonomy (fallback to album's taxonomy if not provided)
 		songPayload.category = await ensureCategoriesExist(songPayload.category || album.category)
@@ -512,22 +623,22 @@ export const uploadSongToAlbum = async (req, res) => {
 
 // ===== Artist profile updates =====
 export const getArtistProfile = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { user, userKey, userKeys, error } = requireArtist(req, res); if (error) return
 	try {
-		const profile = await ArtistModel.findOne({ userId: String(user._id) })
+		const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
 		if (!profile) return res.status(404).json({ success: false, message: 'Artist profile not found' })
 		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile
 		artistObj.email = user.email
+		artistObj.userId = userKey
 		res.status(200).json({ success: true, artist: artistObj })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Error fetching profile', error: err.message })
 	}
 }
 export const getArtistStats = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { user, userKey, userKeys, error } = requireArtist(req, res); if (error) return
 	try {
-		const userId = String(user._id)
-		const profile = await ArtistModel.findOne({ userId })
+		const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
 
 		// Basic counts (my content)
 		const [
@@ -537,22 +648,22 @@ export const getArtistStats = async (req, res) => {
 			hiddenSongsCount,
 			hiddenAlbumsCount,
 		] = await Promise.all([
-			SongModel.countDocuments({ userId }),
-			AlbumModel.countDocuments({ artistUserId: userId }),
-			PlayListModel.countDocuments({ userId }),
-			SongModel.countDocuments({ userId, hidden: true }),
-			AlbumModel.countDocuments({ artistUserId: userId, hidden: true }),
+			SongModel.countDocuments({ userId: { $in: userKeys } }),
+			AlbumModel.countDocuments({ artistUserId: { $in: userKeys } }),
+			PlayListModel.countDocuments({ userId: { $in: userKeys } }),
+			SongModel.countDocuments({ userId: { $in: userKeys }, hidden: true }),
+			AlbumModel.countDocuments({ artistUserId: { $in: userKeys }, hidden: true }),
 		])
 
 		// Likes totals for my songs/albums
 		const [songLikesAgg, albumLikesAgg] = await Promise.all([
 			SongModel.aggregate([
-				{ $match: { userId } },
+				{ $match: { userId: { $in: userKeys } } },
 				{ $project: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
 				{ $group: { _id: null, total: { $sum: '$likesCount' } } }
 			]),
 			AlbumModel.aggregate([
-				{ $match: { artistUserId: userId } },
+				{ $match: { artistUserId: { $in: userKeys } } },
 				{ $project: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
 				{ $group: { _id: null, total: { $sum: '$likesCount' } } }
 			]),
@@ -563,14 +674,14 @@ export const getArtistStats = async (req, res) => {
 		// Top categories and genres across my songs
 		const [topCategories, topGenres] = await Promise.all([
 			SongModel.aggregate([
-				{ $match: { userId } },
+				{ $match: { userId: { $in: userKeys } } },
 				{ $unwind: '$category' },
 				{ $group: { _id: '$category', count: { $sum: 1 } } },
 				{ $sort: { count: -1 } },
 				{ $limit: 10 }
 			]),
 			SongModel.aggregate([
-				{ $match: { userId } },
+				{ $match: { userId: { $in: userKeys } } },
 				{ $unwind: '$genre' },
 				{ $group: { _id: '$genre', count: { $sum: 1 } } },
 				{ $sort: { count: -1 } },
@@ -603,9 +714,9 @@ export const getArtistStats = async (req, res) => {
 }
 
 export const editArtistProfile = async (req, res) => {
-	const { user, error } = requireArtist(req, res); if (error) return
+	const { userKeys, error } = requireArtist(req, res); if (error) return
 	try {
-		const profile = await ArtistModel.findOne({ userId: String(user._id) })
+		const profile = await ArtistModel.findOne({ userId: { $in: userKeys } })
 		if (!profile) return res.status(404).json({ success: false, message: 'Artist profile not found' })
 		const updates = {}
 		if (req.body?.name !== undefined) updates.name = req.body.name
@@ -631,11 +742,13 @@ export const register = async (req, res) => {
 		const exists = await UserModel.findOne({ email })
 		if (exists) return res.status(400).json({ success: false, message: 'Email already exists' })
 
-		const user = new UserModel({ email, password, name, role: 'artist' })
+		const apostleId = await generateApostleId({ role: 'artist' })
+		const user = new UserModel({ email, password, name, role: 'artist', apostleId })
 		await user.save()
 
 		// Create artist profile linked to user
-		const profile = new ArtistModel({ userId: String(user._id), type: type || 'artist', name: name || 'Artist' })
+		const artistId = await generateApostleId({ role: 'artist', type: 'ART' })
+		const profile = new ArtistModel({ userId: user.apostleId || String(user._id), artistId, type: type || 'artist', name: name || 'Artist' })
 		await profile.save()
 
 		// Send activation OTP
@@ -661,7 +774,7 @@ export const register = async (req, res) => {
 			secure: true,
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		})
-		res.status(201).json({ success: true, artist: { id: profile._id, userId: user._id, name: profile.name }, accessToken, refreshToken, message: 'Artist created. Activation OTP sent to email.' })
+		res.status(201).json({ success: true, artist: { id: profile.artistId || profile._id, userId: user.apostleId || user._id, name: profile.name }, accessToken, refreshToken, message: 'Artist created. Activation OTP sent to email.' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist register error', error: err.message })
 	}
@@ -700,12 +813,39 @@ export const login = async (req, res) => {
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		})
 		// Fetch artist profile for convenience
-		const profile = await ArtistModel.findOne({ userId: String(user._id) })
+		const profile = await ArtistModel.findOne({ userId: { $in: [user.apostleId, String(user._id)].filter(Boolean) } })
 		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile
 		if (artistObj) artistObj.email = user.email
 		res.status(200).json({ success: true, artist: artistObj, artistEmail: user.email, accessToken, refreshToken })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist login error', error: err.message })
+	}
+}
+
+export const deleteMyAccount = async (req, res) => {
+	const { user, userKey, userKeys, error } = requireArtist(req, res); if (error) return
+	try {
+
+		await Promise.all([
+			ArtistModel.deleteMany({ userId: { $in: userKeys } }),
+			SongModel.deleteMany({ userId: { $in: userKeys } }),
+			AlbumModel.deleteMany({ artistUserId: { $in: userKeys } }),
+			PlayListModel.deleteMany({ userId: { $in: userKeys } }),
+			RecentPlaysModel.deleteMany({ userId: { $in: userKeys } }),
+			PlaybackModel.deleteMany({ userId: user._id }),
+			OtpModel.deleteMany({ $or: [{ userId: { $in: userKeys } }, { email: user.email }] }),
+		])
+
+		await UserModel.deleteOne({ _id: user._id })
+
+		res.clearCookie('apostolicaccesstoken')
+		res.clearCookie('apostolictoken')
+		res.clearCookie('accessToken')
+		res.clearCookie('refreshToken')
+
+		res.status(200).json({ success: true, message: 'Account deleted', userId: userKey })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error deleting account', error: err.message })
 	}
 }
 

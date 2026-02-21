@@ -1,7 +1,13 @@
 import UserModel from '../model/User.js'
 import OtpModel from '../model/Otp.js'
 import PlayListModel from '../model/PlayList.js'
-import { generateOtp } from '../middleware/utils.js'
+import SongModel from '../model/Song.js'
+import AlbumModel from '../model/Album.js'
+import ArtistModel from '../model/Artist.js'
+import PodcasterModel from '../model/Podcaster.js'
+import RecentPlaysModel from '../model/RecentPlays.js'
+import PlaybackModel from '../model/Playback.js'
+import { generateOtp, generateApostleId, getUserKey } from '../middleware/utils.js'
 import { forgotPasswordEmail, activationEmail } from '../middleware/emailTemplate.js'
 import jwt from 'jsonwebtoken'
 
@@ -10,6 +16,8 @@ export const getUserProfile = async (req, res) => {
 	try {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const userKey = getUserKey(u)
 		const user = await UserModel.findById(u._id).select('-password')
 		if (!user) return res.status(404).json({ success: false, message: 'User not found' })
 		res.status(200).json({ success: true, user })
@@ -45,7 +53,8 @@ export const register = async (req, res) => {
     const exists = await UserModel.findOne({ email })
     if (exists) return res.status(400).json({ success: false, message: 'Email already exists' })
 
-    const user = new UserModel({ email, password, name, phoneNumber })
+		const apostleId = await generateApostleId({ role: 'user' })
+		const user = new UserModel({ email, password, name, phoneNumber, apostleId })
     await user.save()
 
     try {
@@ -71,7 +80,7 @@ export const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      user: { id: user._id, email: user.email, name: user.name },
+			user: { id: user.apostleId || user._id, email: user.email, name: user.name },
       tokens: { accessToken, refreshToken },
       message: 'User created. Activation OTP sent to email.',
     })
@@ -113,7 +122,7 @@ export const login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      user: { id: user._id, email: user.email, name: user.name },
+			user: { id: user.apostleId || user._id, email: user.email, name: user.name },
       tokens: { accessToken, refreshToken },
     })
   } catch (err) {
@@ -226,6 +235,51 @@ export const logout = async (req, res) => {
   res.status(200).json({ success: true, message: 'Logged out' })
 }
 
+export const deleteMyAccount = async (req, res) => {
+	try {
+		const user = req.user
+		if (!user) return res.status(401).json({ success: false, message: 'Authentication required' })
+
+		const userKey = getUserKey(user)
+		const userKeys = [userKey, String(user._id)].filter(Boolean)
+		const role = String(user.role || 'user')
+
+		const deletions = [
+			PlayListModel.deleteMany({ userId: { $in: userKeys } }),
+			RecentPlaysModel.deleteMany({ userId: { $in: userKeys } }),
+			PlaybackModel.deleteMany({ userId: user._id }),
+			OtpModel.deleteMany({ $or: [{ userId: { $in: userKeys } }, { email: user.email }] }),
+		]
+
+		if (role === 'artist') {
+			deletions.push(
+				ArtistModel.deleteMany({ userId: { $in: userKeys } }),
+				SongModel.deleteMany({ userId: { $in: userKeys } }),
+				AlbumModel.deleteMany({ artistUserId: { $in: userKeys } })
+			)
+		}
+
+		if (role === 'podcaster') {
+			deletions.push(
+				PodcasterModel.deleteMany({ userId: { $in: userKeys } }),
+				SongModel.deleteMany({ userId: { $in: userKeys } })
+			)
+		}
+
+		await Promise.all(deletions)
+		await UserModel.deleteOne({ _id: user._id })
+
+		res.clearCookie('accessToken')
+		res.clearCookie('refreshToken')
+		res.clearCookie('apostolicaccesstoken')
+		res.clearCookie('apostolictoken')
+
+		return res.status(200).json({ success: true, message: 'Account deleted' })
+	} catch (err) {
+		return res.status(500).json({ success: false, message: 'Error deleting account', error: err.message })
+	}
+}
+
 // Create a playlist for the authenticated user
 export const createPlaylist = async (req, res) => {
 	try {
@@ -241,7 +295,7 @@ export const createPlaylist = async (req, res) => {
 
 		const playlist = await PlayListModel.create({
 			name,
-			userId: String(u._id),
+			userId: userKey,
 			tracksId,
 		})
 
@@ -257,7 +311,9 @@ export const getMyPlaylists = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
-		const playlists = await PlayListModel.find({ userId: String(u._id) }).sort({ createdAt: -1 })
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+		const playlists = await PlayListModel.find({ userId: { $in: userKeys } }).sort({ createdAt: -1 })
 		return res.status(200).json({ success: true, playlists })
 	} catch (err) {
 		return res.status(500).json({ success: false, message: 'Error fetching playlists', error: err.message })
@@ -270,9 +326,12 @@ export const getMyPlaylistById = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+
 		const playlist = await PlayListModel.findById(req.params.id)
 		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
-		if (String(playlist.userId) !== String(u._id)) {
+		if (!userKeys.includes(String(playlist.userId))) {
 			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
 		}
 
@@ -288,9 +347,12 @@ export const updatePlaylist = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+
 		const playlist = await PlayListModel.findById(req.params.id)
 		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
-		if (String(playlist.userId) !== String(u._id)) {
+		if (!userKeys.includes(String(playlist.userId))) {
 			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
 		}
 
@@ -314,9 +376,12 @@ export const deletePlaylist = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+
 		const playlist = await PlayListModel.findById(req.params.id)
 		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
-		if (String(playlist.userId) !== String(u._id)) {
+		if (!userKeys.includes(String(playlist.userId))) {
 			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
 		}
 
@@ -333,12 +398,15 @@ export const addTrackToPlaylist = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+
 		const trackId = String(req.body?.trackId || '').trim()
 		if (!trackId) return res.status(400).json({ success: false, message: 'trackId is required' })
 
 		const playlist = await PlayListModel.findById(req.params.id)
 		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
-		if (String(playlist.userId) !== String(u._id)) {
+		if (!userKeys.includes(String(playlist.userId))) {
 			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
 		}
 
@@ -358,12 +426,15 @@ export const removeTrackFromPlaylist = async (req, res) => {
 		const u = req.user
 		if (!u) return res.status(401).json({ success: false, message: 'Authentication required' })
 
+		const userKey = getUserKey(u)
+		const userKeys = [userKey, String(u._id)].filter(Boolean)
+
 		const trackId = String(req.params.trackId || '').trim()
 		if (!trackId) return res.status(400).json({ success: false, message: 'trackId is required' })
 
 		const playlist = await PlayListModel.findById(req.params.id)
 		if (!playlist) return res.status(404).json({ success: false, message: 'Playlist not found' })
-		if (String(playlist.userId) !== String(u._id)) {
+		if (!userKeys.includes(String(playlist.userId))) {
 			return res.status(403).json({ success: false, message: 'Not owner of playlist' })
 		}
 

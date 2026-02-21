@@ -23,12 +23,14 @@ router.post('/resendOtp', controllers.resendOtp)
 router.post('/forgotPassword', validateForgotPassword, controllers.forgotPassword)
 router.post('/resetPassword', validateResetPassword, controllers.resetPassword)
 router.get('/isVerified', controllers.isVerified)
+router.delete('/account', AuthenticateUser, controllers.deleteMyAccount)
 
 
 //GET ROUTES
 router.get('/getAllArtists', AuthenticateUser, controllers.getAllArtists)
 router.get('/getArtistById/:artistId', controllers.getArtistById)
 router.get('/getArtistByName/:name', controllers.getArtistByName)
+router.get('/search', controllers.searchArtists)
 router.get('/getMyArtists', AuthenticateAdmin, controllers.getMyArtists)
 router.get('/getLikedArtists', AuthenticateUser, controllers.getLikedArtists)
 router.get('/getFollowedArtists', AuthenticateUser, controllers.getFollowedArtists)

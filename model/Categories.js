@@ -11,6 +11,13 @@ const CategoriesSchema = new mongoose.Schema({
         type: String
     },
     imageUrl: { type: String }
+    ,
+    contentType: {
+        type: String,
+        enum: ['song', 'podcast', 'both'],
+        default: 'song',
+        index: true
+    }
 },
 { timestamps: true},
 )

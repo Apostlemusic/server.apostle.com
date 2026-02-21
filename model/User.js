@@ -15,12 +15,18 @@ const UserSchema = new mongoose.Schema({
         required: [ true,  'Email address is required' ],
         unique: [ true, 'Email address already exist' ]
     },
+    apostleId: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true,
+    },
     phoneNumber: {
         type: String,
     },
     role: {
         type: String,
-        enum: ['user','artist','admin'],
+        enum: ['user','artist','admin','podcaster'],
         default: 'user'
     },
     verified: {

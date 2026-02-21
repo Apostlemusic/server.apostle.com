@@ -12,6 +12,7 @@ import adminRoute from './routes/admin.routes.js';
 import userRoute from './routes/user.routes.js';
 import artistRoute from './routes/artist.routes.js';
 import contentRoute from './routes/content.routes.js';
+import podcasterRoute from './routes/podcaster.routes.js';
 
 
 // CORS setup
@@ -72,6 +73,7 @@ app.use('/api/user', userRoute);
 app.use('/api/auth', userRoute); // Map auth to userRoute which contains auth endpoints
 app.use('/api/admin', adminRoute);
 app.use('/api/artist', artistRoute);
+app.use('/api/podcaster', podcasterRoute);
 app.use('/api/content', contentRoute)
 
 

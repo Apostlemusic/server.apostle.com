@@ -2,6 +2,7 @@ import OtpModel from "../model/Otp.js";
 import SongModel from "../model/Song.js";
 import CategoryModel from "../model/Categories.js";
 import GenreModel from "../model/Genre.js";
+import SequenceModel from "../model/Sequence.js";
 
 export const toSlug = (str = '') => {
   return String(str)
@@ -30,14 +31,64 @@ export const normalizeArray = (input) => {
   return [...new Set(slugs)]
 }
 
-export const ensureCategoriesExist = async (categories) => {
+const ROLE_CODE_MAP = {
+  user: 'USR',
+  admin: 'ADM',
+  artist: 'ART',
+  podcaster: 'POD',
+}
+
+export const getRoleCode = (role) => {
+  if (!role) return ROLE_CODE_MAP.user
+  const key = String(role).toLowerCase()
+  return ROLE_CODE_MAP[key] || String(role).toUpperCase().slice(0, 3)
+}
+
+export const generateApostleId = async ({ role, type } = {}) => {
+  const roleCode = getRoleCode(role)
+  const typeCode = type ? String(type).toUpperCase() : null
+  const sequenceName = `apostle:${roleCode}:${typeCode || 'ACC'}`
+  const seq = await SequenceModel.findOneAndUpdate(
+    { name: sequenceName },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true }
+  )
+  const padded = String(seq.value).padStart(6, '0')
+  return `APO-${roleCode}${typeCode ? `-${typeCode}` : ''}-${padded}`
+}
+
+export const getUserKey = (user) => {
+  if (!user) return ''
+  return String(user.apostleId || user._id || '')
+}
+
+export const ensureCategoriesExist = async (categories, options = {}) => {
   const slugs = normalizeArray(categories)
+  const contentType = typeof options?.contentType === 'string' ? options.contentType : undefined
+  const allowedTypes = new Set(['song', 'podcast', 'both'])
+  const normalizedType = allowedTypes.has(contentType) ? contentType : undefined
+
   for (const slug of slugs) {
     const existing = await CategoryModel.findOne({ slug })
     if (!existing) {
-      await new CategoryModel({ name: titleCase(slug), slug }).save()
+      const payload = { name: titleCase(slug), slug }
+      if (normalizedType) payload.contentType = normalizedType
+      await new CategoryModel(payload).save()
+      continue
+    }
+
+    if (normalizedType) {
+      const current = existing.contentType || 'song'
+      if (normalizedType === 'both' && current !== 'both') {
+        existing.contentType = 'both'
+        await existing.save()
+      } else if (current !== normalizedType && current !== 'both') {
+        existing.contentType = 'both'
+        await existing.save()
+      }
     }
   }
+
   return slugs
 }
 

@@ -25,6 +25,7 @@ router.post('/forgotPassword', validateForgotPassword, controllers.forgotPasswor
 router.post('/resetPassword', validateResetPassword, controllers.resetPassword)
 router.post('/verifyToken', controllers.verifyToken)
 router.post('/logout', controllers.logout)
+router.delete('/account', AuthenticateUser, controllers.deleteMyAccount)
 // User playlist
 router.post('/playlist', AuthenticateUser, controllers.createPlaylist)
 router.get('/playlists', AuthenticateUser, controllers.getMyPlaylists)
