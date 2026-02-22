@@ -6,7 +6,7 @@ import GenreModel from '../model/Genre.js'
 import PlayListModel from '../model/PlayList.js'
 import PlaybackModel from '../model/Playback.js'
 import mongoose from 'mongoose'
-import { toSlug, titleCase, normalizeArray, ensureCategoriesExist, ensureGenresExist, generateApostleId, getRoleCode } from '../middleware/utils.js'
+import { toSlug, titleCase, normalizeArray, ensureCategoriesExist, ensureGenresExist, generateApostleId, getRoleCode, getUserKey } from '../middleware/utils.js'
 
 // Middleware placeholder for uploads (Cloudinary URLs provided by frontend)
 export const uploadMiddleware = (req, res, next) => next()
