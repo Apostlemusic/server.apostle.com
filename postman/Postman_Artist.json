@@ -1,0 +1,282 @@
+{
+    "info": {
+        "name": "Apostle - Artist Collection",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000/api"
+        },
+        {
+            "key": "accessToken",
+            "value": ""
+        },
+        {
+            "key": "refreshToken",
+            "value": ""
+        },
+        {
+            "key": "artistId",
+            "value": ""
+        },
+        {
+            "key": "songId",
+            "value": ""
+        },
+        {
+            "key": "albumId",
+            "value": ""
+        }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "register"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"artist@example.com\",\n  \"password\": \"Password123!\",\n  \"name\": \"Artist Name\",\n  \"type\": \"artist\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"artist@example.com\",\n  \"password\": \"Password123!\"\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Profile",
+            "item": [
+                {
+                    "name": "Profile Me",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/profile/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "profile",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Edit Profile",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/profile/edit",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "profile",
+                                "edit"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"biography\": \"Artist bio\",\n  \"location\": \"City\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Dashboard Stats",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/dashboard/stats",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "dashboard",
+                                "stats"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Song Management",
+            "item": [
+                {
+                    "name": "Upload Song",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/song/upload",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "song",
+                                "upload"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Song Title\",\n  \"author\": \"Artist Name\",\n  \"trackUrl\": \"https://...\",\n  \"trackImg\": \"https://...\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"],\n  \"artistIds\": [\"{{artistId}}\"]\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Edit Song",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/song/edit",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "song",
+                                "edit"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"songId\": \"{{songId}}\",\n  \"title\": \"Updated Title\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Songs",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/song/my",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "song",
+                                "my"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Album Management",
+            "item": [
+                {
+                    "name": "Upload Album",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/album/upload",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "album",
+                                "upload"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Album Title\",\n  \"category\": [\"gospel\"],\n  \"genre\": [\"worship\"],\n  \"songs\": []\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Get My Albums",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/artist/album/my",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "artist",
+                                "album",
+                                "my"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

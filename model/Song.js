@@ -23,7 +23,7 @@ const SongSchema = new mongoose.Schema({
     trackId: {
         type: String,
         required: [true, 'track Id is required'],
-        unique: [ true, 'Track Id must be unique']
+        unique: [true, 'Track Id must be unique']
     },
     description: {
         type: String,
@@ -36,11 +36,11 @@ const SongSchema = new mongoose.Schema({
     },
     trackUrl: {
         type: String,
-        required: [ true, 'Song/Track Url is required' ]
+        required: [true, 'Song/Track Url is required']
     },
     category: {
         type: Array,
-        required: [ true, 'at least one category is Required']
+        required: [true, 'at least one category is Required']
     },
     genre: {
         type: Array,
@@ -65,9 +65,14 @@ const SongSchema = new mongoose.Schema({
     hidden: {
         type: Boolean,
         default: false
+    },
+    listensCount: {
+        type: Number,
+        default: 0,
+        index: true
     }
 },
-{ timestamps: true}
+    { timestamps: true }
 )
 
 SongSchema.index({ title: 'text' });

@@ -33,59 +33,51 @@ const normalizeArtistIds = (input) => {
   return [...new Set(ids)]
 }
 
-const getListenCountMap = async (ids, itemType) => {
-  const list = Array.isArray(ids) ? ids : []
-  if (list.length === 0) return new Map()
-  const agg = await PlaybackModel.aggregate([
-    { $match: { itemType, itemId: { $in: list } } },
-    { $group: { _id: '$itemId', count: { $sum: 1 } } },
-  ])
-  return new Map(agg.map(a => [String(a._id), a.count]))
+
+const parseLyrics = (lyrics) => {
+  if (!lyrics) return []
+  return lyrics.split(/\r?\n/).filter((l) => l.trim().length > 0)
 }
 
-const attachListenCountsToSongs = async (songs, itemType = 'song') => {
+/**
+ * Enriches song objects with collaborators and formatted metadata.
+ * Uses the listensCount field from the model as the source of truth.
+ */
+const enrichSongs = async (songs) => {
   const list = Array.isArray(songs) ? songs : [songs]
   if (list.length === 0) return []
-  const ids = list.map(s => s._id).filter(Boolean)
-  const map = await getListenCountMap(ids, itemType)
-  return list.map((song) => {
-    const obj = typeof song?.toObject === 'function' ? song.toObject() : song
-    const entries = Object.entries(obj || {})
-    const nextEntries = []
-    let inserted = false
-    for (const [key, value] of entries) {
-      nextEntries.push([key, value])
-      if (key === 'trackUrl') {
-        nextEntries.push(['listensCount', map.get(String(song._id)) || 0])
-        inserted = true
-      }
-    }
-    if (!inserted) {
-      nextEntries.push(['listensCount', map.get(String(song._id)) || 0])
-    }
-    return Object.fromEntries(nextEntries)
-  })
-}
 
-const attachCollaboratorsToSongs = async (songs) => {
-  const list = Array.isArray(songs) ? songs : [songs]
+  // Extract unique artist IDs for collaborator lookup
   const extractIds = (song) => {
     const artists = Array.isArray(song?.artists) ? song.artists : []
     return artists.map((id) => String(id)).filter(Boolean)
   }
-  const ids = [...new Set(list.flatMap(extractIds))]
-  if (ids.length === 0) {
-    return list.map((song) => (typeof song?.toObject === 'function' ? song.toObject() : song))
+  const allArtistIds = [...new Set(list.flatMap(extractIds))]
+
+  let artistMap = new Map()
+  if (allArtistIds.length > 0) {
+    const artistDocs = await ArtistModel.find({ artistId: { $in: allArtistIds } })
+      .select('artistId name profileImg userId')
+      .lean()
+    artistMap = new Map(artistDocs.map((a) => [String(a.artistId), a]))
   }
-  const artistDocs = await ArtistModel.find({ artistId: { $in: ids } })
-    .select('artistId name profileImg userId')
-    .lean()
-  const artistMap = new Map(artistDocs.map((a) => [String(a.artistId), a]))
 
   return list.map((song) => {
     const obj = typeof song?.toObject === 'function' ? song.toObject() : song
-    const collaborators = extractIds(song).map((id) => artistMap.get(String(id))).filter(Boolean)
-    return { ...obj, collaborators }
+    const artistIds = extractIds(song)
+    const collaborators = artistIds.map((id) => artistMap.get(String(id))).filter(Boolean)
+
+    // Ensure listensCount is present (it might be missing in older docs)
+    const listensCount = obj.listensCount || 0
+
+    // Remove internal/redundant fields if necessary
+    const { ...rest } = obj
+
+    return {
+      ...rest,
+      listensCount,
+      collaborators,
+    }
   })
 }
 
@@ -201,12 +193,21 @@ export const likeSong = async (req, res) => {
 
 export const getAllSongs = async (req, res) => {
   try {
-    const songs = await SongModel.find()
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.min(Number(req.query.limit || 50), 100)
+    const skip = (page - 1) * limit
 
-    const includeListenCounts = String(req.query.includeListenCounts || '').toLowerCase() === 'true'
-    const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-    const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-    res.status(200).json({ success: true, songs: songsWithCollabs })
+    const [songs, total] = await Promise.all([
+      SongModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+      SongModel.countDocuments(),
+    ])
+
+    const enriched = await enrichSongs(songs)
+    res.status(200).json({
+      success: true,
+      songs: enriched,
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching songs', error: err.message })
   }
@@ -219,16 +220,16 @@ export const getSongById = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid song id' })
     }
 
-    const song = await SongModel.findById(id)
+    // Atomically increment listen count and get updated document
+    const song = await SongModel.findByIdAndUpdate(id, { $inc: { listensCount: 1 } }, { new: true })
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
 
-    // Auto-record playback if user is authenticated (no-op otherwise)
+    // Auto-record playback for user discovery/history
     await logPlayback(req, 'song', song._id)
 
-    const [songWithCounts] = await attachListenCountsToSongs([song], 'song')
-    const [songWithCollabs] = await attachCollaboratorsToSongs([songWithCounts])
-    const lyricsParsed = (song.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
-    res.status(200).json({ success: true, song: songWithCollabs, lyricsParsed })
+    const [enriched] = await enrichSongs([song])
+    const lyricsParsed = parseLyrics(song.lyrics)
+    res.status(200).json({ success: true, song: enriched, lyricsParsed })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching song', error: err.message })
   }
@@ -237,15 +238,13 @@ export const getSongById = async (req, res) => {
 export const getSongByTrackId = async (req, res) => {
   try {
     const { trackId } = req.params
-    const song = await SongModel.findOne({ trackId })
+    const song = await SongModel.findOneAndUpdate({ trackId }, { $inc: { listensCount: 1 } }, { new: true })
     if (!song) return res.status(404).json({ success: false, message: 'Song not found' })
 
-    // Auto-record playback (this route is already behind AuthenticateUser)
     await logPlayback(req, 'song', song._id)
 
-    const [songWithCounts] = await attachListenCountsToSongs([song], 'song')
-    const [songWithCollabs] = await attachCollaboratorsToSongs([songWithCounts])
-    res.status(200).json({ success: true, song: songWithCollabs })
+    const [enriched] = await enrichSongs([song])
+    res.status(200).json({ success: true, song: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching song by track', error: err.message })
   }
@@ -265,9 +264,8 @@ export const searchSongs = async (req, res) => {
   try {
     const { query } = req.params
     const songs = await SongModel.find({ $text: { $search: query } })
-    const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-    const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-    res.status(200).json({ success: true, songs: songsWithCollabs })
+    const enriched = await enrichSongs(songs)
+    res.status(200).json({ success: true, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error searching songs', error: err.message })
   }
@@ -277,9 +275,8 @@ export const getSongsByCategory = async (req, res) => {
   try {
     const { category } = req.params
     const songs = await SongModel.find({ category: { $in: [category] } })
-    const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-    const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-    res.status(200).json({ success: true, songs: songsWithCollabs })
+    const enriched = await enrichSongs(songs)
+    res.status(200).json({ success: true, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching songs by category', error: err.message })
   }
@@ -292,9 +289,8 @@ export const getPodcasts = async (req, res) => {
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
 
-    const podcastsWithCounts = await attachListenCountsToSongs(podcasts, 'podcast')
-    const podcastsWithCollabs = await attachCollaboratorsToSongs(podcastsWithCounts)
-    res.status(200).json({ success: true, podcasts: podcastsWithCollabs })
+    const enriched = await enrichSongs(podcasts)
+    res.status(200).json({ success: true, podcasts: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching podcasts', error: err.message })
   }
@@ -307,14 +303,17 @@ export const getPodcastById = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid podcast id' })
     }
 
-    const podcast = await SongModel.findOne({ _id: id, ...buildPodcastQuery() })
+    const podcast = await SongModel.findOneAndUpdate(
+      { _id: id, ...buildPodcastQuery() },
+      { $inc: { listensCount: 1 } },
+      { new: true }
+    )
     if (!podcast) return res.status(404).json({ success: false, message: 'Podcast not found' })
 
     await logPlayback(req, 'podcast', podcast._id)
-    const [podcastWithCounts] = await attachListenCountsToSongs([podcast], 'podcast')
-    const [podcastWithCollabs] = await attachCollaboratorsToSongs([podcastWithCounts])
-    const lyricsParsed = (podcast.lyrics || '').split(/\r?\n/).filter(l => l.trim().length > 0)
-    res.status(200).json({ success: true, podcast: podcastWithCollabs, lyricsParsed })
+    const [enriched] = await enrichSongs([podcast])
+    const lyricsParsed = parseLyrics(podcast.lyrics)
+    res.status(200).json({ success: true, podcast: enriched, lyricsParsed })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching podcast', error: err.message })
   }
@@ -323,13 +322,16 @@ export const getPodcastById = async (req, res) => {
 export const getPodcastByTrackId = async (req, res) => {
   try {
     const { trackId } = req.params
-    const podcast = await SongModel.findOne({ trackId, ...buildPodcastQuery() })
+    const podcast = await SongModel.findOneAndUpdate(
+      { trackId, ...buildPodcastQuery() },
+      { $inc: { listensCount: 1 } },
+      { new: true }
+    )
     if (!podcast) return res.status(404).json({ success: false, message: 'Podcast not found' })
 
     await logPlayback(req, 'podcast', podcast._id)
-    const [podcastWithCounts] = await attachListenCountsToSongs([podcast], 'podcast')
-    const [podcastWithCollabs] = await attachCollaboratorsToSongs([podcastWithCounts])
-    res.status(200).json({ success: true, podcast: podcastWithCollabs })
+    const [enriched] = await enrichSongs([podcast])
+    res.status(200).json({ success: true, podcast: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching podcast by track', error: err.message })
   }
@@ -339,9 +341,8 @@ export const getLikedSongs = async (req, res) => {
   try {
     const userId = req.query.userId
     const songs = await SongModel.find({ likes: userId })
-    const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-    const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-    res.status(200).json({ success: true, songs: songsWithCollabs })
+    const enriched = await enrichSongs(songs)
+    res.status(200).json({ success: true, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching liked songs', error: err.message })
   }
@@ -349,16 +350,14 @@ export const getLikedSongs = async (req, res) => {
 
 export const getMyLikedSongs = async (req, res) => {
   try {
-    const userKey = req.user && getUserKey(req.user)
-    const userKeys = req.user ? [userKey, String(req.user._id)].filter(Boolean) : []
+    const userKeys = req.user ? [getUserKey(req.user), String(req.user._id)].filter(Boolean) : []
     if (!userKeys.length) {
       return res.status(401).json({ success: false, message: 'Authentication required' })
     }
 
     const songs = await SongModel.find({ likes: { $in: userKeys } })
-    const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-    const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-    res.status(200).json({ success: true, songs: songsWithCollabs })
+    const enriched = await enrichSongs(songs)
+    res.status(200).json({ success: true, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching liked songs', error: err.message })
   }
@@ -406,7 +405,10 @@ export const unhideSong = async (req, res) => {
 // ===== PLAYLISTS =====
 export const newPlayList = async (req, res) => {
   try {
-    const { name, userId } = req.body
+    const { name } = req.body
+    const userId = req.user ? (getUserKey(req.user) || req.user._id) : null
+    if (!userId) return res.status(401).json({ success: false, message: 'Authentication required' })
+
     const pl = new PlayListModel({ name, userId, tracksId: [] })
     await pl.save()
     res.status(201).json({ success: true, playList: pl })
@@ -420,6 +422,13 @@ export const addToPlayList = async (req, res) => {
     const { playlistId, trackId } = req.body
     const pl = await PlayListModel.findById(playlistId)
     if (!pl) return res.status(404).json({ success: false, message: 'Playlist not found' })
+
+    // Ownership check
+    const userKeys = req.user ? [getUserKey(req.user), String(req.user._id)].filter(Boolean) : []
+    if (!userKeys.includes(String(pl.userId))) {
+      return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+    }
+
     pl.tracksId = pl.tracksId || []
     if (!pl.tracksId.includes(trackId)) pl.tracksId.push(trackId)
     await pl.save()
@@ -432,6 +441,14 @@ export const addToPlayList = async (req, res) => {
 export const deletePlayList = async (req, res) => {
   try {
     const { playlistId } = req.body
+    const pl = await PlayListModel.findById(playlistId)
+    if (!pl) return res.status(404).json({ success: false, message: 'Playlist not found' })
+
+    const userKeys = req.user ? [getUserKey(req.user), String(req.user._id)].filter(Boolean) : []
+    if (!userKeys.includes(String(pl.userId))) {
+      return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+    }
+
     await PlayListModel.findByIdAndDelete(playlistId)
     res.status(200).json({ success: true, message: 'Playlist deleted' })
   } catch (err) {
@@ -444,6 +461,12 @@ export const removeTrackFromPlayList = async (req, res) => {
     const { playlistId, trackId } = req.body
     const pl = await PlayListModel.findById(playlistId)
     if (!pl) return res.status(404).json({ success: false, message: 'Playlist not found' })
+
+    const userKeys = req.user ? [getUserKey(req.user), String(req.user._id)].filter(Boolean) : []
+    if (!userKeys.includes(String(pl.userId))) {
+      return res.status(403).json({ success: false, message: 'Not owner of playlist' })
+    }
+
     pl.tracksId = (pl.tracksId || []).filter(t => t !== trackId)
     await pl.save()
     res.status(200).json({ success: true, playList: pl })
@@ -552,6 +575,10 @@ export const deleteCategory = async (req, res) => {
 export const getAllCategory = async (req, res) => {
   try {
     const requestedType = typeof req.query?.contentType === 'string' ? req.query.contentType.toLowerCase() : ''
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.min(Number(req.query.limit || 50), 100)
+    const skip = (page - 1) * limit
+
     let filter = {}
     if (requestedType === 'podcast') {
       filter = { contentType: { $in: ['podcast', 'both'] } }
@@ -560,8 +587,17 @@ export const getAllCategory = async (req, res) => {
     } else if (requestedType === 'both') {
       filter = { contentType: 'both' }
     }
-    const cats = await CategoryModel.find(filter)
-    res.status(200).json({ success: true, categories: cats })
+
+    const [cats, total] = await Promise.all([
+      CategoryModel.find(filter).skip(skip).limit(limit),
+      CategoryModel.countDocuments(filter),
+    ])
+
+    res.status(200).json({
+      success: true,
+      categories: cats,
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching categories', error: err.message })
   }
@@ -586,8 +622,9 @@ export const getCategory = async (req, res) => {
       songFilter = { ...songFilter, contentType: { $ne: 'podcast' } }
     }
     const songs = await SongModel.find(songFilter)
+    const enriched = await enrichSongs(songs)
 
-    res.status(200).json({ success: true, category, songs })
+    res.status(200).json({ success: true, category, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching category', error: err.message })
   }
@@ -651,8 +688,20 @@ export const deleteGenre = async (req, res) => {
 
 export const getAllGenre = async (req, res) => {
   try {
-    const genres = await GenreModel.find()
-    res.status(200).json({ success: true, genres })
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.min(Number(req.query.limit || 50), 100)
+    const skip = (page - 1) * limit
+
+    const [genres, total] = await Promise.all([
+      GenreModel.find().skip(skip).limit(limit),
+      GenreModel.countDocuments(),
+    ])
+
+    res.status(200).json({
+      success: true,
+      genres,
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching genres', error: err.message })
   }
@@ -668,8 +717,9 @@ export const getGenre = async (req, res) => {
 
     const keys = [genre.slug, genre.name].filter(Boolean)
     const songs = await SongModel.find({ genre: { $in: keys } })
+    const enriched = await enrichSongs(songs)
 
-    res.status(200).json({ success: true, genre, songs })
+    res.status(200).json({ success: true, genre, songs: enriched })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error fetching genre', error: err.message })
   }
@@ -728,15 +778,17 @@ export const getDiscover = async (req, res) => {
 
         const songs = songIds.length ? await SongModel.find({ _id: { $in: songIds } }) : []
         const podcasts = podcastIds.length ? await SongModel.find({ _id: { $in: podcastIds } }) : []
-        const songsWithCounts = await attachListenCountsToSongs(songs, 'song')
-        const podcastsWithCounts = await attachListenCountsToSongs(podcasts, 'podcast')
-        const songsWithCollabs = await attachCollaboratorsToSongs(songsWithCounts)
-        const podcastsWithCollabs = await attachCollaboratorsToSongs(podcastsWithCounts)
+
+        const [enrichedSongs, enrichedPodcasts] = await Promise.all([
+          enrichSongs(songs),
+          enrichSongs(podcasts)
+        ])
+
         const albums = albumIds.length ? await AlbumModel.find({ _id: { $in: albumIds } }) : []
         const cats = categoryIds.length ? await CategoryModel.find({ _id: { $in: categoryIds } }) : []
 
-        const idToSong = new Map(songsWithCollabs.map(s => [String(s._id), s]))
-        const idToPodcast = new Map(podcastsWithCollabs.map(p => [String(p._id), p]))
+        const idToSong = new Map(enrichedSongs.map(s => [String(s._id), s]))
+        const idToPodcast = new Map(enrichedPodcasts.map(p => [String(p._id), p]))
         const idToAlbum = new Map(albums.map(a => [String(a._id), a]))
         const idToCat = new Map(cats.map(c => [String(c._id), c]))
 
@@ -759,24 +811,36 @@ export const getDiscover = async (req, res) => {
 
       case 'new-releases': {
         const items = await SongModel.find().sort({ createdAt: -1, _id: -1 }).limit(limit)
-        const itemsWithCounts = await attachListenCountsToSongs(items, 'song')
-        const itemsWithCollabs = await attachCollaboratorsToSongs(itemsWithCounts)
-        return res.status(200).json({ success: true, section: 'new-releases', items: itemsWithCollabs })
+        const enriched = await enrichSongs(items)
+        return res.status(200).json({ success: true, section: 'new-releases', items: enriched })
       }
 
       case 'most-liked': {
-        const items = await SongModel.aggregate([
+        const items = await SongModel.find().sort({ 'likes.length': -1 }).limit(limit) // Prefer indexed sort if possible, but aggregate was used before
+        // The previous aggregate approach was better for $size, keeping it simplified for enrichSongs
+        const rawItems = await SongModel.aggregate([
           { $addFields: { likesCount: { $size: { $ifNull: ['$likes', []] } } } },
           { $sort: { likesCount: -1 } },
           { $limit: limit },
         ])
-        const itemsWithCounts = await attachListenCountsToSongs(items, 'song')
-        const itemsWithCollabs = await attachCollaboratorsToSongs(itemsWithCounts)
-        return res.status(200).json({ success: true, section: 'most-liked', items: itemsWithCollabs })
+        const enriched = await enrichSongs(rawItems)
+        return res.status(200).json({ success: true, section: 'most-liked', items: enriched })
       }
 
       case 'most-listened': {
         const normalizedType = type === 'audio' ? 'song' : (type || 'song')
+
+        // Use the new listensCount field for most-listened section if it's song/podcast
+        if (normalizedType === 'song' || normalizedType === 'podcast') {
+          const docs = await SongModel.find({ contentType: normalizedType })
+            .sort({ listensCount: -1 })
+            .limit(limit)
+          const enriched = await enrichSongs(docs)
+          const items = enriched.map(d => ({ type: normalizedType, count: d.listensCount, item: d }))
+          return res.status(200).json({ success: true, section: 'most-listened', items })
+        }
+
+        // Fallback to playback aggregation for other types
         const agg = await PlaybackModel.aggregate([
           { $match: { itemType: normalizedType } },
           { $group: { _id: '$itemId', count: { $sum: 1 } } },
@@ -786,20 +850,13 @@ export const getDiscover = async (req, res) => {
 
         const ids = agg.map(a => a._id)
         let docs = []
-        if (normalizedType === 'song' || normalizedType === 'podcast') {
-          docs = await SongModel.find({ _id: { $in: ids } })
-        } else if (normalizedType === 'album') {
+        if (normalizedType === 'album') {
           docs = await AlbumModel.find({ _id: { $in: ids } })
         } else if (normalizedType === 'category') {
           docs = await CategoryModel.find({ _id: { $in: ids } })
         }
-        const docsWithCounts = (normalizedType === 'song' || normalizedType === 'podcast')
-          ? await attachListenCountsToSongs(docs, normalizedType)
-          : docs
-        const docsWithCollabs = (normalizedType === 'song' || normalizedType === 'podcast')
-          ? await attachCollaboratorsToSongs(docsWithCounts)
-          : docsWithCounts
-        const map = new Map(docsWithCollabs.map(d => [String(d._id), d]))
+
+        const map = new Map(docs.map(d => [String(d._id), d]))
         const items = agg.map(a => ({ type: normalizedType, count: a.count, item: map.get(String(a._id)) })).filter(x => x.item)
 
         return res.status(200).json({ success: true, section: 'most-listened', items })
@@ -809,9 +866,8 @@ export const getDiscover = async (req, res) => {
         const items = await SongModel.find(buildPodcastQuery())
           .sort({ createdAt: -1, _id: -1 })
           .limit(limit)
-        const itemsWithCounts = await attachListenCountsToSongs(items, 'podcast')
-        const itemsWithCollabs = await attachCollaboratorsToSongs(itemsWithCounts)
-        return res.status(200).json({ success: true, section: 'podcasts', items: itemsWithCollabs })
+        const enriched = await enrichSongs(items)
+        return res.status(200).json({ success: true, section: 'podcasts', items: enriched })
       }
 
       default:
@@ -839,10 +895,12 @@ export const searchAll = async (req, res) => {
       GenreModel.find({ $or: [{ name: rx }, { slug: rx }] }).limit(limit),
     ])
 
+    const enrichedSongs = await enrichSongs(songs)
+
     res.status(200).json({
       success: true,
       query: q,
-      results: { songs, albums, artists, categories, genres },
+      results: { songs: enrichedSongs, albums, artists, categories, genres },
     })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error searching', error: err.message })
