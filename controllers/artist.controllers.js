@@ -74,17 +74,17 @@ export const getAllArtists = async (req, res) => {
 }
 
 export const getArtistById = async (req, res) => {
-  try {
-    const id = String(req.params.id || '').trim()
-    const isObjectId = mongoose.Types.ObjectId.isValid(id)
+	try {
+		const id = String(req.params.id || '').trim()
+		const isObjectId = mongoose.Types.ObjectId.isValid(id)
 
-    const artist = isObjectId
-      ? await ArtistModel.findById(id)
-      : await ArtistModel.findOne({ $or: [{ artistId: id }, { userId: id }] })
+		const artist = isObjectId
+			? await ArtistModel.findById(id)
+			: await ArtistModel.findOne({ $or: [{ artistId: id }, { userId: id }] })
 
-    if (!artist) {
-      return res.status(404).json({ success: false, message: 'Artist not found' })
-    }
+		if (!artist) {
+			return res.status(404).json({ success: false, message: 'Artist not found' })
+		}
 
 		const artistKey = artist.artistId || artist.userId
 		const [songs, albums] = await Promise.all([
@@ -97,24 +97,24 @@ export const getArtistById = async (req, res) => {
 		artistObj.likesCount = artist.likes?.length || 0
 		artistObj.followersCount = artist.followers?.length || 0
 
-    res.status(200).json({
-      success: true,
-	  artist: artistObj,
-		  songs: songsWithCounts,
-      albums,
-    })
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Error fetching artist', error: err.message })
-  }
+		res.status(200).json({
+			success: true,
+			artist: artistObj,
+			songs: songsWithCounts,
+			albums,
+		})
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching artist', error: err.message })
+	}
 }
 
 export const getArtistByName = async (req, res) => {
-  try {
-    const name = String(req.params.name || '').trim()
-    if (!name) return res.status(400).json({ success: false, message: 'Artist name is required' })
+	try {
+		const name = String(req.params.name || '').trim()
+		if (!name) return res.status(400).json({ success: false, message: 'Artist name is required' })
 
-    const artist = await ArtistModel.findOne({ name: new RegExp(`^${name}$`, 'i') })
-    if (!artist) return res.status(404).json({ success: false, message: 'Artist not found' })
+		const artist = await ArtistModel.findOne({ name: new RegExp(`^${name}$`, 'i') })
+		if (!artist) return res.status(404).json({ success: false, message: 'Artist not found' })
 
 		const artistKey = artist.artistId || artist.userId
 		const [songs, albums] = await Promise.all([
@@ -127,10 +127,10 @@ export const getArtistByName = async (req, res) => {
 		artistObj.likesCount = artist.likes?.length || 0
 		artistObj.followersCount = artist.followers?.length || 0
 
-	res.status(200).json({ success: true, artist: artistObj, songs: songsWithCounts, albums })
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Error fetching artist by name', error: err.message })
-  }
+		res.status(200).json({ success: true, artist: artistObj, songs: songsWithCounts, albums })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Error fetching artist by name', error: err.message })
+	}
 }
 
 export const getMyArtists = async (req, res) => {
@@ -762,18 +762,16 @@ export const register = async (req, res) => {
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
 		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
-		res.cookie('apostolicaccesstoken', accessToken, {
+		const isProd = process.env.NODE_ENV === 'production'
+		const cookieOptions = (maxAge) => ({
 			httpOnly: true,
-			sameSite: 'None',
-			secure: true,
-			maxAge: 15 * 60 * 1000, // 15 minutes
+			sameSite: isProd ? 'None' : 'Lax',
+			secure: isProd,
+			maxAge,
 		})
-		res.cookie('apostolictoken', refreshToken, {
-			httpOnly: true,
-			sameSite: 'None',
-			secure: true,
-			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-		})
+
+		res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
+		res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
 		res.status(201).json({ success: true, artist: { id: profile.artistId || profile._id, userId: user.apostleId || user._id, name: profile.name }, accessToken, refreshToken, message: 'Artist created. Activation OTP sent to email.' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist register error', error: err.message })
@@ -800,18 +798,16 @@ export const login = async (req, res) => {
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
 		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
-		res.cookie('apostolicaccesstoken', accessToken, {
+		const isProd = process.env.NODE_ENV === 'production'
+		const cookieOptions = (maxAge) => ({
 			httpOnly: true,
-			sameSite: 'None',
-			secure: true,
-			maxAge: 15 * 60 * 1000, // 15 minutes
+			sameSite: isProd ? 'None' : 'Lax',
+			secure: isProd,
+			maxAge,
 		})
-		res.cookie('apostolictoken', refreshToken, {
-			httpOnly: true,
-			sameSite: 'None',
-			secure: true,
-			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-		})
+
+		res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
+		res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
 		// Fetch artist profile for convenience
 		const profile = await ArtistModel.findOne({ userId: { $in: [user.apostleId, String(user._id)].filter(Boolean) } })
 		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile

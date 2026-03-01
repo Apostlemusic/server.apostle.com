@@ -334,18 +334,16 @@ export const register = async (req, res) => {
     const accessToken = user.getAccessToken()
     const refreshToken = user.getRefreshToken()
 
-    res.cookie('apostolicaccesstoken', accessToken, {
+    const isProd = process.env.NODE_ENV === 'production'
+    const cookieOptions = (maxAge) => ({
       httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 15 * 60 * 1000,
+      sameSite: isProd ? 'None' : 'Lax',
+      secure: isProd,
+      maxAge,
     })
-    res.cookie('apostolictoken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
+
+    res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
+    res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
 
     res.status(201).json({ success: true, podcaster: { id: profile.podcasterId || profile._id, userId: user.apostleId || user._id, name: profile.name }, accessToken, refreshToken, message: 'Podcaster created. Activation OTP sent to email.' })
   } catch (err) {
@@ -373,18 +371,16 @@ export const login = async (req, res) => {
     const accessToken = user.getAccessToken()
     const refreshToken = user.getRefreshToken()
 
-    res.cookie('apostolicaccesstoken', accessToken, {
+    const isProd = process.env.NODE_ENV === 'production'
+    const cookieOptions = (maxAge) => ({
       httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 15 * 60 * 1000,
+      sameSite: isProd ? 'None' : 'Lax',
+      secure: isProd,
+      maxAge,
     })
-    res.cookie('apostolictoken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
+
+    res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
+    res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
 
     const profile = await PodcasterModel.findOne({ userId: { $in: [user.apostleId, String(user._id)].filter(Boolean) } })
     const obj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile

@@ -80,6 +80,155 @@
                             "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"password\": \"Password123!\"\n}"
                         }
                     }
+                },
+                {
+                    "name": "Verify OTP",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/verifyOtp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "verifyOtp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"otp\": \"123456\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Resend OTP",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/resendOtp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "resendOtp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"podcaster@example.com\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Forgot Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/forgotPassword",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "forgotPassword"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"podcaster@example.com\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Reset Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/resetPassword",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "resetPassword"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"podcaster@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Is Verified",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/isVerified?email=podcaster@example.com",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "isVerified"
+                            ],
+                            "query": [
+                                {
+                                    "key": "email",
+                                    "value": "podcaster@example.com"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete My Account",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "account"
+                            ]
+                        }
+                    }
                 }
             ]
         },
@@ -105,6 +254,177 @@
                                 "podcaster",
                                 "profile",
                                 "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Edit Profile",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/profile/edit",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "profile",
+                                "edit"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Podcaster Name\",\n  \"about\": \"Updated about section\",\n  \"description\": \"Updated description\"\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Social",
+            "item": [
+                {
+                    "name": "Follow Podcaster",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/follow",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "follow"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcasterId\": \"{{podcasterId}}\",\n  \"userId\": \"{{userId}}\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Like Podcaster",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/like",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "like"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcasterId\": \"{{podcasterId}}\",\n  \"userId\": \"{{userId}}\"\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Directory",
+            "item": [
+                {
+                    "name": "Get All Podcasters",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/getAllPodcasters",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "getAllPodcasters"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Podcaster By Id",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/getPodcasterById/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "getPodcasterById",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{podcasterId}}"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Podcaster By Name",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/getPodcasterByName/:name",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "getPodcasterByName",
+                                ":name"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "name",
+                                    "value": "Podcaster Name"
+                                }
                             ]
                         }
                     }
@@ -165,6 +485,130 @@
                                 "podcast",
                                 "my"
                             ]
+                        }
+                    }
+                },
+                {
+                    "name": "Edit Podcast",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/podcast/edit",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "podcast",
+                                "edit"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcastId\": \"{{podcastId}}\",\n  \"title\": \"Updated Podcast Title\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Remove Podcast",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/podcast/remove",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "podcast",
+                                "remove"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Hide Podcast",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/podcast/hide",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "podcast",
+                                "hide"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Unhide Podcast",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{accessToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/podcaster/podcast/unhide",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "podcaster",
+                                "podcast",
+                                "unhide"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"podcastId\": \"{{podcastId}}\"\n}"
                         }
                     }
                 }

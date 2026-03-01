@@ -22,23 +22,20 @@ const buildPodcastQuery = () => ({
 
 // Helper to set admin auth cookies in responses
 function setAdminAuthCookies(res, accessToken, refreshToken) {
-  if (accessToken) {
-    res.cookie('apostolicadminaccesstoken', accessToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    })
-  }
-  if (refreshToken) {
-    // default to 7 days if env not provided; cookie expiry is separate from JWT exp
-    res.cookie('apostolicadmintoken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'None',
-      secure: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
-  }
+	const isProd = process.env.NODE_ENV === 'production'
+	const cookieOptions = (maxAge) => ({
+		httpOnly: true,
+		sameSite: isProd ? 'None' : 'Lax',
+		secure: isProd,
+		maxAge,
+	})
+
+	if (accessToken) {
+		res.cookie('apostolicadminaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
+	}
+	if (refreshToken) {
+		res.cookie('apostolicadmintoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
+	}
 }
 
 export const register = async (req, res) => {
@@ -87,25 +84,25 @@ export const login = async (req, res) => {
 }
 
 export const verifyOtp = async (req, res) => {
-  try {
-    const { email, otp } = req.body
-    if (!email || !otp) return res.status(400).json({ success: false, message: 'email and otp are required' })
-    const record = await OtpModel.findOne({ email, code: otp })
-    if (!record) return res.status(400).json({ success: false, message: 'Invalid or expired OTP' })
-    const admin = await AdminModel.findOne({ email })
-    if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' })
-    // Mark verified if the schema supports it; otherwise just acknowledge
-    // Optionally add a field isVerified in Admin model; here we no-op if absent
-    // @ts-ignore
-    if (typeof admin.isVerified !== 'undefined') {
-      admin.isVerified = true
-      await admin.save()
-    }
-    await OtpModel.deleteMany({ email })
-    res.status(200).json({ success: true, message: 'OTP verified' })
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'verifyOtp error', error: err.message })
-  }
+	try {
+		const { email, otp } = req.body
+		if (!email || !otp) return res.status(400).json({ success: false, message: 'email and otp are required' })
+		const record = await OtpModel.findOne({ email, code: otp })
+		if (!record) return res.status(400).json({ success: false, message: 'Invalid or expired OTP' })
+		const admin = await AdminModel.findOne({ email })
+		if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' })
+		// Mark verified if the schema supports it; otherwise just acknowledge
+		// Optionally add a field isVerified in Admin model; here we no-op if absent
+		// @ts-ignore
+		if (typeof admin.isVerified !== 'undefined') {
+			admin.isVerified = true
+			await admin.save()
+		}
+		await OtpModel.deleteMany({ email })
+		res.status(200).json({ success: true, message: 'OTP verified' })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'verifyOtp error', error: err.message })
+	}
 }
 
 export const resendOtp = async (req, res) => {
