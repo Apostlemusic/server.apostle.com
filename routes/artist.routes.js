@@ -23,6 +23,8 @@ router.post('/resendOtp', controllers.resendOtp)
 router.post('/forgotPassword', validateForgotPassword, controllers.forgotPassword)
 router.post('/resetPassword', validateResetPassword, controllers.resetPassword)
 router.get('/isVerified', controllers.isVerified)
+router.post('/refreshToken', controllers.refreshToken)
+router.post('/logout', controllers.logout)
 router.delete('/account', AuthenticateUser, controllers.deleteMyAccount)
 
 

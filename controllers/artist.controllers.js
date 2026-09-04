@@ -12,6 +12,8 @@ import CategoryModel from '../model/Categories.js'
 import GenreModel from '../model/Genre.js'
 import PlayListModel from '../model/PlayList.js'
 import { toSlug, titleCase, normalizeArray, ensureCategoriesExist, ensureGenresExist, generateApostleId, getUserKey } from '../middleware/utils.js'
+import jwt from 'jsonwebtoken'
+import { setAuthCookies, clearAuthCookies } from '../middleware/authCookies.js'
 
 export const uploadMiddleware = (req, res, next) => next()
 
@@ -736,6 +738,17 @@ export const editArtistProfile = async (req, res) => {
 }
 
 // Artist auth & account management
+
+// Shared helper: resolve the artist profile that belongs to a user document.
+const findArtistProfile = async (user) => {
+	const keys = [user.apostleId, String(user._id)].filter(Boolean)
+	const profile = await ArtistModel.findOne({ userId: { $in: keys } })
+	if (!profile) return null
+	const obj = typeof profile.toObject === 'function' ? profile.toObject() : profile
+	obj.email = user.email
+	return obj
+}
+
 export const register = async (req, res) => {
 	try {
 		const { email, password, name, type } = req.body
@@ -762,16 +775,7 @@ export const register = async (req, res) => {
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
 		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
-		const isProd = process.env.NODE_ENV === 'production'
-		const cookieOptions = (maxAge) => ({
-			httpOnly: true,
-			sameSite: isProd ? 'None' : 'Lax',
-			secure: isProd,
-			maxAge,
-		})
-
-		res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
-		res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
+		setAuthCookies(req, res, accessToken, refreshToken)
 		res.status(201).json({ success: true, artist: { id: profile.artistId || profile._id, userId: user.apostleId || user._id, name: profile.name }, accessToken, refreshToken, message: 'Artist created. Activation OTP sent to email.' })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist register error', error: err.message })
@@ -792,26 +796,17 @@ export const login = async (req, res) => {
 		}
 
 		if (!user.verified) {
-			return res.status(403).json({ success: false, message: 'Account not verified. Please verify your OTP to continue.' })
+			// `code` lets the client route straight to the OTP screen instead of
+			// showing a dead-end "login failed" error.
+			return res.status(403).json({ success: false, code: 'ACCOUNT_NOT_VERIFIED', email: user.email, message: 'Account not verified. Please verify your OTP to continue.' })
 		}
 
 		const accessToken = user.getAccessToken()
 		const refreshToken = user.getRefreshToken()
 		// Set auth cookies for browser flows (cross-site): SameSite=None + Secure
-		const isProd = process.env.NODE_ENV === 'production'
-		const cookieOptions = (maxAge) => ({
-			httpOnly: true,
-			sameSite: isProd ? 'None' : 'Lax',
-			secure: isProd,
-			maxAge,
-		})
-
-		res.cookie('apostolicaccesstoken', accessToken, cookieOptions(15 * 60 * 1000))
-		res.cookie('apostolictoken', refreshToken, cookieOptions(7 * 24 * 60 * 60 * 1000))
+		setAuthCookies(req, res, accessToken, refreshToken)
 		// Fetch artist profile for convenience
-		const profile = await ArtistModel.findOne({ userId: { $in: [user.apostleId, String(user._id)].filter(Boolean) } })
-		const artistObj = profile && typeof profile.toObject === 'function' ? profile.toObject() : profile
-		if (artistObj) artistObj.email = user.email
+		const artistObj = await findArtistProfile(user)
 		res.status(200).json({ success: true, artist: artistObj, artistEmail: user.email, accessToken, refreshToken })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist login error', error: err.message })
@@ -861,7 +856,16 @@ export const verifyOtp = async (req, res) => {
 			await user.save()
 		}
 		await OtpModel.deleteMany({ email })
-		res.status(200).json({ success: true, message: 'OTP verified' })
+		if (!user) return res.status(404).json({ success: false, message: 'User not found' })
+
+		// Verification is the end of the signup funnel, so log the artist straight in.
+		// Previously this returned no tokens at all, while the client stored an
+		// "authenticated" flag and navigated to the dashboard with no credentials.
+		const accessToken = user.getAccessToken()
+		const refreshToken = user.getRefreshToken()
+		setAuthCookies(req, res, accessToken, refreshToken)
+		const artistObj = await findArtistProfile(user)
+		res.status(200).json({ success: true, message: 'OTP verified', artist: artistObj, artistEmail: user.email, accessToken, refreshToken })
 	} catch (err) {
 		res.status(500).json({ success: false, message: 'Artist verifyOtp error', error: err.message })
 	}
@@ -909,6 +913,50 @@ export const resetPassword = async (req, res) => {
 	}
 }
 
+/**
+ * Explicit refresh endpoint.
+ *
+ * The SPA keeps its tokens in localStorage and authenticates with a Bearer
+ * header, because browsers increasingly block third-party cookies (Safari ITP,
+ * Chrome). Without this route an expired access token was unrecoverable: the
+ * only refresh path lived inside AuthenticateUser and depended on the very
+ * cross-site cookies that get blocked.
+ */
+export const refreshToken = async (req, res) => {
+	try {
+		const supplied = req.body?.refreshToken || req.cookies?.apostolictoken || req.cookies?.refreshToken
+		if (!supplied) return res.status(401).json({ success: false, message: 'Refresh token required' })
+
+		let decoded
+		try {
+			decoded = jwt.verify(supplied, process.env.JWT_SECRET)
+		} catch (e) {
+			clearAuthCookies(req, res)
+			return res.status(401).json({ success: false, code: 'REFRESH_TOKEN_INVALID', message: 'Refresh token invalid or expired' })
+		}
+
+		const user = await UserModel.findById(decoded.id)
+		if (!user) {
+			clearAuthCookies(req, res)
+			return res.status(401).json({ success: false, message: 'User no longer exists' })
+		}
+		if (user.blocked) return res.status(403).json({ success: false, message: 'Account blocked' })
+		if (!user.verified) return res.status(403).json({ success: false, code: 'ACCOUNT_NOT_VERIFIED', message: 'Account not verified' })
+
+		const accessToken = user.getAccessToken()
+		const newRefreshToken = user.getRefreshToken()
+		setAuthCookies(req, res, accessToken, newRefreshToken)
+		res.status(200).json({ success: true, accessToken, refreshToken: newRefreshToken })
+	} catch (err) {
+		res.status(500).json({ success: false, message: 'Artist refreshToken error', error: err.message })
+	}
+}
+
+export const logout = async (req, res) => {
+	clearAuthCookies(req, res)
+	res.status(200).json({ success: true, message: 'Logged out' })
+}
+
 export const isVerified = async (req, res) => {
 	try {
 		const source = (req.body && typeof req.body === 'object') ? req.body : (req.query || {})
@@ -936,6 +984,8 @@ export default {
 	getFollowedArtists,
 	register,
 	login,
+	refreshToken,
+	logout,
 	verifyOtp,
 	resendOtp,
 	forgotPassword,

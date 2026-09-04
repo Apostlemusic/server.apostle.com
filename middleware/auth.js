@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../model/User.js';
 import AdminModel from '../model/Admin.js';
+import { buildCookieOptions, accessTokenMaxAge } from './authCookies.js';
 
 export const AuthenticateUser = async (req, res, next) => {
     // Prefer Authorization header if provided (supports SPA/mobile sending Bearer tokens)
@@ -57,16 +58,13 @@ export const AuthenticateUser = async (req, res, next) => {
             }
 
             // Generate a new access token
-            const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-            const isProd = process.env.NODE_ENV === 'production';
-            const cookieOptions = {
-                httpOnly: true,
-                sameSite: isProd ? 'None' : 'Lax',
-                secure: isProd,
-                maxAge: 15 * 60 * 1000, // 15 minutes
-            };
+            const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRE || '1h' });
+            const cookieOptions = buildCookieOptions(req, accessTokenMaxAge());
             res.cookie('apostolicaccesstoken', newAccessToken, cookieOptions);
             res.cookie('accessToken', newAccessToken, cookieOptions);
+            // Also surface it to header-based (localStorage) clients, which cannot
+            // read httpOnly cookies and otherwise never learn about the new token.
+            res.setHeader('x-access-token', newAccessToken);
             req.user = user;
             return next();
         } catch (refreshError) {
@@ -132,13 +130,9 @@ export const AuthenticateAdmin = async (req, res, next) => {
             }
 
             // Generate a new access token
-            const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-            res.cookie('apostolicadminaccesstoken', newAccessToken, {
-                httpOnly: true,
-                sameSite: 'None',
-                secure: true,
-                maxAge: 15 * 60 * 1000, // 15 minutes
-            });
+            const newAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRE || '1h' });
+            res.cookie('apostolicadminaccesstoken', newAccessToken, buildCookieOptions(req, accessTokenMaxAge()));
+            res.setHeader('x-access-token', newAccessToken);
             req.user = user;
             return next();
         } catch (refreshError) {

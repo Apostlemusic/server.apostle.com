@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import OtpModel from "../model/Otp.js";
 import SongModel from "../model/Song.js";
 import CategoryModel from "../model/Categories.js";
@@ -104,27 +105,32 @@ export const ensureGenresExist = async (genres) => {
 }
 
 export async function generateOtp(userId, email) {
-    const generateOtp = () => {
-        // Generate a random 6-digit number
-        const otp = Math.floor(1000 + Math.random() * 9000).toString(); 
-        return otp;
+    const randomOtp = () => {
+        // Generate a random 6-digit number (100000-999999)
+        return crypto.randomInt(100000, 1000000).toString();
     };
 
-    let otp;
-    let exists = true;
+    // Only one live OTP per email: a resend must invalidate the previous code.
+    await OtpModel.deleteMany({ email });
 
-    while (exists) {
-        otp = generateOtp();
-        exists = await OtpModel.findOne({ code: otp });
+    // Uniqueness only has to hold among the codes currently live for this email,
+    // which is now at most one. The previous version required global uniqueness
+    // across every OTP in the collection and looped forever once the (4-digit)
+    // keyspace filled up.
+    let otp = randomOtp();
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const clash = await OtpModel.findOne({ email, code: otp });
+        if (!clash) break;
+        otp = randomOtp();
     }
 
-    const otpCode = await new OtpModel({
+    await new OtpModel({
         userId: userId,
         code: otp,
         email: email,
     }).save();
 
-    return otp; 
+    return otp;
 }
 
 export async function generateUniqueCode(length) {
